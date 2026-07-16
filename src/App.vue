@@ -23,14 +23,19 @@ const favoriteReadings = ref<string[]>(storage.favoriteReadings())
 const settings = ref<Settings>(storage.settings())
 const selectedJournal = ref<JournalEntry | null>(null)
 const selectedCard = ref<TarotCardType | null>(null)
+const drawFanRef = ref<HTMLElement | null>(null)
 const libraryFilter = ref<'all' | 'favorites'>('all')
 const shuffling = ref(false)
+const deckDragging = ref(false)
 const note = ref('')
 const savedCurrent = ref(false)
 const shuffleCards = Array.from({ length: 24 }, (_, index) => index)
 const fanCards = Array.from({ length: 78 }, (_, index) => index + 1)
 let shuffleTimer: number | undefined
 let typeTimer: number | undefined
+let dragStartX = 0
+let dragStartScroll = 0
+let dragDistance = 0
 
 const currentSpread = computed(() => spreads[spreadId.value])
 const visibleCards = computed(() => prepared.value.slice(0, revealedCount.value))
@@ -103,6 +108,40 @@ function revealNext() {
   }
 }
 
+function scrollDeck(event: WheelEvent) {
+  if (!drawFanRef.value) return
+  drawFanRef.value.scrollLeft += event.deltaX || event.deltaY
+}
+
+function startDeckDrag(event: PointerEvent) {
+  if (event.pointerType === 'touch' || !drawFanRef.value) return
+  deckDragging.value = true
+  dragStartX = event.clientX
+  dragStartScroll = drawFanRef.value.scrollLeft
+  dragDistance = 0
+}
+
+function moveDeckDrag(event: PointerEvent) {
+  if (!deckDragging.value || !drawFanRef.value) return
+  const distance = event.clientX - dragStartX
+  dragDistance = Math.max(dragDistance, Math.abs(distance))
+  if (dragDistance >= 8 && !drawFanRef.value.hasPointerCapture(event.pointerId)) {
+    drawFanRef.value.setPointerCapture(event.pointerId)
+  }
+  drawFanRef.value.scrollLeft = dragStartScroll - distance
+}
+
+function endDeckDrag(event: PointerEvent) {
+  if (!deckDragging.value || !drawFanRef.value) return
+  deckDragging.value = false
+  if (drawFanRef.value.hasPointerCapture(event.pointerId)) drawFanRef.value.releasePointerCapture(event.pointerId)
+}
+
+function chooseDeckCard() {
+  if (dragDistance < 8) revealNext()
+  dragDistance = 0
+}
+
 function showResult() {
   interpretation.value = composeReading(question.value, theme.value, prepared.value)
   view.value = 'result'
@@ -148,6 +187,7 @@ function updateNote(entry: JournalEntry) {
 }
 
 function removeJournal(id: string) {
+  if (!window.confirm('确定删除这条塔罗日记吗？删除后无法恢复。')) return
   journal.value = journal.value.filter(item => item.id !== id)
   storage.saveJournal(journal.value)
   selectedJournal.value = null
@@ -179,6 +219,7 @@ function playTone() {
     gain.gain.setValueAtTime(0.05, context.currentTime)
     gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + 0.6)
     oscillator.connect(gain).connect(context.destination)
+    oscillator.addEventListener('ended', () => void context.close(), { once: true })
     oscillator.start()
     oscillator.stop(context.currentTime + 0.6)
   } catch {
@@ -306,8 +347,18 @@ onBeforeUnmount(clearTimers)
           <small v-if="!canFinish">{{ currentSpread.positions[revealedCount] }}</small>
         </div>
 
-        <div v-if="!canFinish" class="draw-fan">
-          <button v-for="n in fanCards" :key="n" :aria-label="`选择第 ${n} 张牌`" :style="{ '--fan-index': n }" @click.stop="revealNext">
+        <div
+          v-if="!canFinish"
+          ref="drawFanRef"
+          class="draw-fan"
+          :class="{ 'is-dragging': deckDragging }"
+          @wheel.prevent="scrollDeck"
+          @pointerdown="startDeckDrag"
+          @pointermove="moveDeckDrag"
+          @pointerup="endDeckDrag"
+          @pointercancel="endDeckDrag"
+        >
+          <button v-for="n in fanCards" :key="n" :aria-label="`选择第 ${n} 张牌`" :style="{ '--fan-index': n }" @click.stop="chooseDeckCard">
             <TarotCard facedown :deck="settings.deck" />
           </button>
         </div>
