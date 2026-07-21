@@ -78,7 +78,7 @@ const themeFocus: Record<Theme, string> = {
 
 function majorCard(seed: MajorSeed, index: number): TarotCard {
   const [name, englishName, keywords, upright, reversed] = seed
-  const readings = Object.fromEntries((Object.keys(themeFocus) as Theme[]).map(theme => [theme, `${themeFocus[theme]} ${upright}`])) as Record<Theme, string>
+  const readings = Object.fromEntries((Object.keys(themeFocus) as Theme[]).map(theme => [theme, `${themeFocus[theme]} 放在${name}的语境中，“${keywords.join('、')}”需要落实为可观察的沟通、边界或行动，而不是停留在抽象感受里。`])) as Record<Theme, string>
   return {
     id: `major-${index}`,
     name,
@@ -97,7 +97,7 @@ function majorCard(seed: MajorSeed, index: number): TarotCard {
 function minorCard(suit: typeof suits[number], rank: typeof ranks[number], index: number): TarotCard {
   const name = `${suit.name}${rank.cn}`
   const context = `${suit.name}对应${suit.element}元素，关乎${suit.focus}。`
-  const readings = Object.fromEntries((Object.keys(themeFocus) as Theme[]).map(theme => [theme, `${themeFocus[theme]} ${context}${rank.up}`])) as Record<Theme, string>
+  const readings = Object.fromEntries((Object.keys(themeFocus) as Theme[]).map(theme => [theme, `${themeFocus[theme]} ${suit.name}的“${rank.key}”提示你从${suit.focus}中找出最需要调整的一个环节，并为它设定清晰的时间与边界。`])) as Record<Theme, string>
   return {
     id: `${suit.id}-${index + 1}`,
     name,

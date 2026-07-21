@@ -21,8 +21,9 @@ function read(key: string): unknown {
 function write<T>(key: string, value: T) {
   try {
     localStorage.setItem(key, JSON.stringify(value))
+    return true
   } catch {
-    // The app remains usable when storage is unavailable.
+    return false
   }
 }
 
@@ -61,11 +62,12 @@ function isJournalEntry(value: unknown): value is JournalEntry {
   const themes: Theme[] = ['love', 'career', 'wealth', 'life', 'free']
   const spreadIds: SpreadId[] = ['single', 'three', 'love', 'career']
   return typeof entry.id === 'string'
+    && (entry.readingId === undefined || typeof entry.readingId === 'string')
     && typeof entry.createdAt === 'string' && Number.isFinite(Date.parse(entry.createdAt))
     && typeof entry.question === 'string'
     && typeof entry.theme === 'string' && themes.includes(entry.theme as Theme)
     && typeof entry.spread === 'string' && spreadIds.includes(entry.spread as SpreadId)
-    && Array.isArray(entry.cards) && entry.cards.every(draw => draw && typeof draw === 'object' && typeof draw.position === 'string' && typeof draw.reversed === 'boolean' && Boolean(draw.card?.id))
+    && Array.isArray(entry.cards) && entry.cards.every(draw => draw && typeof draw === 'object' && typeof draw.position === 'string' && typeof draw.reversed === 'boolean' && typeof draw.card?.id === 'string' && typeof draw.card.name === 'string')
     && typeof entry.interpretation === 'string'
     && typeof entry.note === 'string'
 }

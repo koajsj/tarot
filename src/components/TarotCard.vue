@@ -27,7 +27,7 @@ const suitMark = computed(() => ({
 
 const frontStyle = computed(() => props.card?.image ? { '--card-artwork': `url("${props.card.image}")` } : undefined)
 
-const celestialCardBack = `${import.meta.env.BASE_URL}assets/celestial-card-back.png`
+const celestialCardBack = `${import.meta.env.BASE_URL}assets/celestial-card-back.jpg`
 </script>
 
 <template>

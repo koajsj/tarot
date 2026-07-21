@@ -14,7 +14,8 @@ const question = ref('')
 const theme = ref<Theme>('life')
 const spreadId = ref<SpreadId>('single')
 const prepared = ref<DrawnCard[]>([])
-const revealedCount = ref(0)
+const deckOrder = ref<TarotCardType[]>([])
+const selectedDeckIds = ref<string[]>([])
 const interpretation = ref('')
 const typedInterpretation = ref('')
 const journal = ref<JournalEntry[]>(storage.journal())
@@ -31,8 +32,10 @@ const shuffling = ref(false)
 const deckDragging = ref(false)
 const note = ref('')
 const savedCurrent = ref(false)
+const currentJournalId = ref<string | null>(null)
+const currentReadingId = ref(crypto.randomUUID())
+const storageIssue = ref(false)
 const shuffleCards = Array.from({ length: 24 }, (_, index) => index)
-const fanCards = Array.from({ length: 78 }, (_, index) => index + 1)
 let shuffleTimer: number | undefined
 let typeTimer: number | undefined
 let dragStartX = 0
@@ -41,8 +44,9 @@ let dragDistance = 0
 let lastFocusedElement: HTMLElement | null = null
 
 const currentSpread = computed(() => spreads[spreadId.value])
-const visibleCards = computed(() => prepared.value.slice(0, revealedCount.value))
-const canFinish = computed(() => revealedCount.value === prepared.value.length && prepared.value.length > 0)
+const visibleCards = computed(() => prepared.value)
+const canFinish = computed(() => prepared.value.length === currentSpread.value.positions.length)
+const remainingDeck = computed(() => deckOrder.value.filter(card => !selectedDeckIds.value.includes(card.id)))
 const filteredDeck = computed(() => libraryFilter.value === 'favorites'
   ? tarotDeck.filter(card => favorites.value.includes(card.id))
   : tarotDeck)
@@ -51,13 +55,19 @@ const filteredJournal = computed(() => journalFilter.value === 'favorites'
   ? journal.value.filter(entry => favoriteReadings.value.includes(entry.readingId ?? readingIdFor(entry.cards)))
   : journal.value)
 const todayName = computed(() => new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date()))
-const currentReadingId = computed(() => prepared.value.map(item => `${item.card.id}-${item.reversed}`).join('|'))
 const deckIsComplete = assertCompleteDeck()
 
-watch(settings, value => storage.saveSettings(value), { deep: true })
-watch(favorites, value => storage.saveFavorites(value), { deep: true })
-watch(favoriteReadings, value => storage.saveFavoriteReadings(value), { deep: true })
+watch(settings, value => { storageIssue.value = !storage.saveSettings(value) }, { deep: true })
+watch(favorites, value => { storageIssue.value = !storage.saveFavorites(value) }, { deep: true })
+watch(favoriteReadings, value => { storageIssue.value = !storage.saveFavoriteReadings(value) }, { deep: true })
 watch(journalFilter, () => { selectedJournal.value = null })
+watch(note, value => {
+  if (!savedCurrent.value || !currentJournalId.value) return
+  const entry = journal.value.find(item => item.id === currentJournalId.value)
+  if (!entry) return
+  entry.note = value
+  storageIssue.value = !storage.saveJournal(journal.value)
+})
 
 function navigate(next: View) {
   clearTimers()
@@ -72,8 +82,11 @@ function startReading() {
   theme.value = 'life'
   spreadId.value = 'single'
   prepared.value = []
-  revealedCount.value = 0
+  deckOrder.value = []
+  selectedDeckIds.value = []
   savedCurrent.value = false
+  currentJournalId.value = null
+  currentReadingId.value = crypto.randomUUID()
   note.value = ''
   navigate('question')
 }
@@ -83,38 +96,54 @@ function quickDraw() {
   theme.value = 'life'
   spreadId.value = 'single'
   prepared.value = []
-  revealedCount.value = 0
+  deckOrder.value = []
+  selectedDeckIds.value = []
   savedCurrent.value = false
+  currentJournalId.value = null
+  currentReadingId.value = crypto.randomUUID()
   note.value = ''
   beginShuffle()
 }
 
 function beginShuffle() {
   if (!question.value.trim()) question.value = '此刻我最需要知道什么？'
+  clearTimers()
+  prepared.value = []
+  deckOrder.value = []
+  selectedDeckIds.value = []
+  savedCurrent.value = false
+  currentJournalId.value = null
+  currentReadingId.value = crypto.randomUUID()
+  note.value = ''
+  interpretation.value = ''
+  typedInterpretation.value = ''
   view.value = 'shuffle'
   shuffling.value = true
+  scrollToTop()
   const delay = settings.value.animations ? 2600 : 200
   shuffleTimer = window.setTimeout(() => {
-    const positions = currentSpread.value.positions
-    prepared.value = drawCards(tarotDeck, positions.length).map((card, index) => ({
-      card,
-      position: positions[index],
-      reversed: Math.random() < 0.35,
-    }))
+    deckOrder.value = drawCards(tarotDeck, tarotDeck.length)
     shuffling.value = false
   }, delay)
 }
 
 function enterDraw() {
-  revealedCount.value = 0
   view.value = 'draw'
+  scrollToTop()
 }
 
-function revealNext() {
-  if (revealedCount.value < prepared.value.length) {
-    revealedCount.value += 1
-    playTone()
-  }
+function selectDeckCard(card: TarotCardType) {
+  if (canFinish.value || selectedDeckIds.value.includes(card.id)) return
+  const position = currentSpread.value.positions[prepared.value.length]
+  selectedDeckIds.value.push(card.id)
+  prepared.value.push({ card, position, reversed: Math.random() < 0.35 })
+  playTone()
+}
+
+function randomDeckCard() {
+  const choices = remainingDeck.value
+  if (!choices.length) return
+  selectDeckCard(choices[Math.floor(Math.random() * choices.length)])
 }
 
 function scrollDeck(event: WheelEvent) {
@@ -146,8 +175,8 @@ function endDeckDrag(event: PointerEvent) {
   if (drawFanRef.value.hasPointerCapture(event.pointerId)) drawFanRef.value.releasePointerCapture(event.pointerId)
 }
 
-function chooseDeckCard() {
-  if (dragDistance < 8) revealNext()
+function chooseDeckCard(card: TarotCardType) {
+  if (dragDistance < 8) selectDeckCard(card)
   dragDistance = 0
 }
 
@@ -155,6 +184,7 @@ function showResult() {
   interpretation.value = composeReading(question.value, theme.value, prepared.value)
   view.value = 'result'
   runTypewriter()
+  scrollToTop()
 }
 
 function runTypewriter() {
@@ -173,7 +203,7 @@ function runTypewriter() {
 }
 
 function saveReading() {
-  if (savedCurrent.value) return
+  if (savedCurrent.value) return true
   const entry: JournalEntry = {
     id: crypto.randomUUID(),
     readingId: currentReadingId.value,
@@ -181,26 +211,41 @@ function saveReading() {
     question: question.value,
     theme: theme.value,
     spread: spreadId.value,
-    cards: prepared.value,
+    cards: prepared.value.map(draw => ({ ...draw })),
     interpretation: interpretation.value,
     note: note.value,
   }
   journal.value.unshift(entry)
-  storage.saveJournal(journal.value)
+  storageIssue.value = !storage.saveJournal(journal.value)
+  if (storageIssue.value) {
+    journal.value = journal.value.filter(item => item.id !== entry.id)
+    return false
+  }
+  currentJournalId.value = entry.id
   savedCurrent.value = true
+  return true
 }
 
 function updateNote(entry: JournalEntry) {
   const found = journal.value.find(item => item.id === entry.id)
   if (found) found.note = entry.note
-  storage.saveJournal(journal.value)
+  storageIssue.value = !storage.saveJournal(journal.value)
 }
 
 function removeJournal(id: string) {
   if (!window.confirm('确定删除这条塔罗日记吗？删除后无法恢复。')) return
+  const removed = journal.value.find(item => item.id === id)
   journal.value = journal.value.filter(item => item.id !== id)
-  storage.saveJournal(journal.value)
+  storageIssue.value = !storage.saveJournal(journal.value)
+  if (removed) {
+    const readingId = removed.readingId ?? readingIdFor(removed.cards)
+    favoriteReadings.value = favoriteReadings.value.filter(item => item !== readingId)
+  }
   selectedJournal.value = null
+}
+
+function selectJournal(entry: JournalEntry) {
+  selectedJournal.value = entry
 }
 
 function toggleFavorite(id: string) {
@@ -210,7 +255,7 @@ function toggleFavorite(id: string) {
 }
 
 function toggleReadingFavorite(id: string) {
-  if (!favoriteReadings.value.includes(id) && !savedCurrent.value) saveReading()
+  if (!favoriteReadings.value.includes(id) && !savedCurrent.value && !saveReading()) return
   favoriteReadings.value = favoriteReadings.value.includes(id)
     ? favoriteReadings.value.filter(item => item !== id)
     : [...favoriteReadings.value, id]
@@ -273,6 +318,10 @@ function clearTimers() {
   window.clearInterval(typeTimer)
 }
 
+function scrollToTop() {
+  void nextTick(() => window.scrollTo({ top: 0, behavior: settings.value.animations ? 'smooth' : 'auto' }))
+}
+
 watch(selectedCard, card => {
   document.body.style.overflow = card ? 'hidden' : ''
 })
@@ -295,9 +344,9 @@ onBeforeUnmount(() => {
         <span>LUNA ARCANA</span>
       </button>
       <nav aria-label="主导航">
-        <button :class="{ active: view === 'journal' }" @click="navigate('journal')">日记</button>
-        <button :class="{ active: view === 'collection' }" @click="navigate('collection')">牌库</button>
-        <button class="icon-button" :class="{ active: view === 'settings' }" aria-label="设置" @click="navigate('settings')">◌</button>
+        <button :class="{ active: view === 'journal' }" :aria-current="view === 'journal' ? 'page' : undefined" @click="navigate('journal')">日记</button>
+        <button :class="{ active: view === 'collection' }" :aria-current="view === 'collection' ? 'page' : undefined" @click="navigate('collection')">牌库</button>
+        <button class="icon-button" :class="{ active: view === 'settings' }" :aria-current="view === 'settings' ? 'page' : undefined" aria-label="设置" @click="navigate('settings')">◌</button>
       </nav>
     </header>
 
@@ -386,8 +435,8 @@ onBeforeUnmount(() => {
         <button class="context-back" @click="navigate('question')">← 返回问题</button>
         <div class="ritual-copy">
           <p>{{ currentSpread.name }}</p>
-          <h2>{{ canFinish ? '牌面已经显现' : `选择第 ${revealedCount + 1} 张牌` }}</h2>
-          <small v-if="!canFinish">{{ currentSpread.positions[revealedCount] }}</small>
+          <h2>{{ canFinish ? '牌面已经显现' : `选择第 ${prepared.length + 1} 张牌` }}</h2>
+          <small v-if="!canFinish">{{ currentSpread.positions[prepared.length] }}</small>
         </div>
 
         <div
@@ -401,14 +450,14 @@ onBeforeUnmount(() => {
           @pointerup="endDeckDrag"
           @pointercancel="endDeckDrag"
         >
-          <button v-for="n in fanCards" :key="n" :aria-label="`选择第 ${n} 张牌`" :style="{ '--fan-index': n }" @click.stop="chooseDeckCard">
+          <button v-for="(card, index) in remainingDeck" :key="card.id" :aria-label="`选择牌组中的第 ${index + 1} 张牌`" @click.stop="chooseDeckCard(card)">
             <TarotCard facedown :deck="settings.deck" />
           </button>
         </div>
 
         <p v-if="!canFinish" class="deck-hint">横向滑动，凭直觉从完整 78 张牌中选择</p>
 
-        <button v-if="!canFinish" class="random-draw-button" @click="revealNext"><span>✦</span> 让牌替我选择</button>
+        <button v-if="!canFinish" class="random-draw-button" @click="randomDeckCard"><span>✦</span> 让牌替我选择</button>
 
         <div class="revealed-row">
           <TarotCard
@@ -420,7 +469,7 @@ onBeforeUnmount(() => {
             :label="draw.position"
             class="revealed-card"
           />
-          <div v-for="position in prepared.slice(revealedCount).map(item => item.position)" :key="position" class="card-placeholder"><span>{{ position }}</span></div>
+          <div v-for="position in currentSpread.positions.slice(prepared.length)" :key="position" class="card-placeholder"><span>{{ position }}</span></div>
         </div>
         <button v-if="canFinish" class="primary-button" @click="showResult"><span>阅读牌意</span><b>→</b></button>
       </section>
@@ -456,9 +505,9 @@ onBeforeUnmount(() => {
       <section v-else-if="view === 'journal'" class="page-view view-enter">
         <button class="back-button page-back" @click="navigate('home')">← 返回首页</button>
         <header class="page-heading"><div><p>私人记录</p><h1>塔罗日记</h1></div><div v-if="journal.length" class="segmented" aria-label="日记筛选"><button :class="{ active: journalFilter === 'all' }" @click="journalFilter = 'all'">全部 {{ journal.length }}</button><button :class="{ active: journalFilter === 'favorites' }" @click="journalFilter = 'favorites'">收藏解读</button></div></header>
-        <div v-if="journal.length" class="journal-layout">
+        <div v-if="journal.length" class="journal-layout" :class="{ 'has-selection': selectedJournal }">
           <div v-if="filteredJournal.length" class="journal-list glass">
-            <button v-for="entry in filteredJournal" :key="entry.id" class="journal-item" :class="{ active: selectedJournal?.id === entry.id }" @click="selectedJournal = entry">
+            <button v-for="entry in filteredJournal" :key="entry.id" class="journal-item" :class="{ active: selectedJournal?.id === entry.id }" @click="selectJournal(entry)">
               <time>{{ formatDate(entry.createdAt) }}</time>
               <h3>{{ entry.question }}</h3>
               <p>{{ spreads[entry.spread].name }} / {{ themeNames[entry.theme] }}</p>
@@ -467,6 +516,7 @@ onBeforeUnmount(() => {
           </div>
           <div v-else class="journal-filter-empty glass"><span>♡</span><p>还没有收藏的解读。</p><button class="text-button" @click="journalFilter = 'all'">查看全部记录</button></div>
           <article v-if="selectedJournal" class="journal-detail glass">
+            <button class="journal-detail-back" @click="selectedJournal = null">← 返回记录</button>
             <header><div><time>{{ formatDate(selectedJournal.createdAt) }}</time><h2>{{ selectedJournal.question }}</h2></div><button class="danger-button" @click="removeJournal(selectedJournal.id)">删除</button></header>
             <p class="preserve-lines">{{ selectedJournal.interpretation }}</p>
             <label for="journal-note">个人备注</label>
@@ -525,6 +575,7 @@ onBeforeUnmount(() => {
       </article>
     </div>
 
-    <div v-if="!deckIsComplete" class="data-error">牌库数据未完整载入，请刷新页面。</div>
+    <div v-if="!deckIsComplete" class="data-error" role="alert">牌库数据未完整载入，请刷新页面。</div>
+    <div v-else-if="storageIssue" class="data-error" role="alert">浏览器未能保存本地数据，请检查隐私模式或存储空间。</div>
   </div>
 </template>
