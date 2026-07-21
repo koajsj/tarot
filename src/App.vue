@@ -5,9 +5,11 @@ import TarotCard from './components/TarotCard.vue'
 import { assertCompleteDeck, categoryNames, spreads, tarotDeck, themeNames } from './data/tarot'
 import { composeReading, drawCards } from './lib/reading'
 import { storage } from './lib/storage'
-import type { DrawnCard, JournalEntry, Settings, SpreadId, TarotCard as TarotCardType, Theme } from './types'
+import type { DrawnCard, Settings, SpreadId, TarotCard as TarotCardType, Theme } from './types'
 
-type View = 'home' | 'question' | 'shuffle' | 'draw' | 'result' | 'journal' | 'collection' | 'settings'
+type View = 'home' | 'question' | 'shuffle' | 'draw' | 'result' | 'collection' | 'settings'
+
+storage.clearReadingHistory()
 
 const view = ref<View>('home')
 const question = ref('')
@@ -18,30 +20,21 @@ const deckOrder = ref<TarotCardType[]>([])
 const selectedDeckIds = ref<string[]>([])
 const interpretation = ref('')
 const typedInterpretation = ref('')
-const journal = ref<JournalEntry[]>(storage.journal())
 const favorites = ref<string[]>(storage.favorites())
-const favoriteReadings = ref<string[]>(storage.favoriteReadings())
 const settings = ref<Settings>(storage.settings())
-const selectedJournal = ref<JournalEntry | null>(null)
 const selectedCard = ref<TarotCardType | null>(null)
 const drawFanRef = ref<HTMLElement | null>(null)
 const modalRef = ref<HTMLElement | null>(null)
 const libraryFilter = ref<'all' | 'favorites'>('all')
-const journalFilter = ref<'all' | 'favorites'>('all')
 const shuffling = ref(false)
 const deckDragging = ref(false)
-const note = ref('')
-const savedCurrent = ref(false)
-const currentJournalId = ref<string | null>(null)
-const currentReadingId = ref(crypto.randomUUID())
-type StorageScope = 'settings' | 'favorites' | 'favoriteReadings' | 'journal'
+type StorageScope = 'settings' | 'favorites'
 const storageFailures = ref<Set<StorageScope>>(new Set())
 const reducedMotion = ref(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 const shuffleCards = Array.from({ length: 24 }, (_, index) => index)
 let shuffleTimer: number | undefined
 let typeTimer: number | undefined
-let noteTimer: number | undefined
 let dragStartX = 0
 let dragStartScroll = 0
 let dragDistance = 0
@@ -56,20 +49,10 @@ const remainingDeck = computed(() => deckOrder.value.filter(card => !selectedDec
 const filteredDeck = computed(() => libraryFilter.value === 'favorites'
   ? tarotDeck.filter(card => favorites.value.includes(card.id))
   : tarotDeck)
-const readingIdFor = (cards: DrawnCard[]) => cards.map(item => `${item.card.id}-${item.reversed}`).join('|')
-const filteredJournal = computed(() => journalFilter.value === 'favorites'
-  ? journal.value.filter(entry => favoriteReadings.value.includes(entry.readingId ?? readingIdFor(entry.cards)))
-  : journal.value)
 const todayName = computed(() => new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date()))
 const deckIsComplete = assertCompleteDeck()
 
 watch(settings, value => recordStorage('settings', storage.saveSettings(value)), { deep: true })
-watch(journalFilter, () => { selectedJournal.value = null })
-watch(note, value => {
-  if (!savedCurrent.value || !currentJournalId.value) return
-  window.clearTimeout(noteTimer)
-  noteTimer = window.setTimeout(() => persistCurrentNote(value), 300)
-})
 
 function recordStorage(scope: StorageScope, success: boolean) {
   const next = new Set(storageFailures.value)
@@ -80,7 +63,6 @@ function recordStorage(scope: StorageScope, success: boolean) {
 
 function navigate(next: View) {
   clearTimers()
-  selectedJournal.value = null
   selectedCard.value = null
   view.value = next
   scrollToTop()
@@ -94,10 +76,6 @@ function startReading() {
   prepared.value = []
   deckOrder.value = []
   selectedDeckIds.value = []
-  savedCurrent.value = false
-  currentJournalId.value = null
-  currentReadingId.value = crypto.randomUUID()
-  note.value = ''
   navigate('question')
 }
 
@@ -108,10 +86,6 @@ function quickDraw() {
   prepared.value = []
   deckOrder.value = []
   selectedDeckIds.value = []
-  savedCurrent.value = false
-  currentJournalId.value = null
-  currentReadingId.value = crypto.randomUUID()
-  note.value = ''
   beginShuffle()
 }
 
@@ -121,10 +95,6 @@ function beginShuffle() {
   prepared.value = []
   deckOrder.value = []
   selectedDeckIds.value = []
-  savedCurrent.value = false
-  currentJournalId.value = null
-  currentReadingId.value = crypto.randomUUID()
-  note.value = ''
   interpretation.value = ''
   typedInterpretation.value = ''
   view.value = 'shuffle'
@@ -144,6 +114,9 @@ function enterDraw() {
 
 function selectDeckCard(card: TarotCardType, focusTarget: 'deck' | 'random' = 'deck') {
   if (canFinish.value || selectedDeckIds.value.includes(card.id)) return
+  const currentChoices = remainingDeck.value
+  const selectedIndex = currentChoices.findIndex(item => item.id === card.id)
+  const adjacentCard = currentChoices[selectedIndex + 1] ?? currentChoices[selectedIndex - 1]
   const position = currentSpread.value.positions[prepared.value.length]
   selectedDeckIds.value.push(card.id)
   prepared.value.push({ card, position, reversed: Math.random() < 0.35 })
@@ -153,7 +126,7 @@ function selectDeckCard(card: TarotCardType, focusTarget: 'deck' | 'random' = 'd
       ? document.querySelector<HTMLButtonElement>('.draw-complete-button')
       : focusTarget === 'random'
         ? document.querySelector<HTMLButtonElement>('.random-draw-button')
-        : document.querySelector<HTMLButtonElement>('.draw-fan button')
+        : document.querySelector<HTMLButtonElement>(`.draw-fan button[data-card-id="${adjacentCard?.id ?? ''}"]`)
     target?.focus({ preventScroll: true })
   })
 }
@@ -220,67 +193,6 @@ function runTypewriter() {
   }, 20)
 }
 
-function saveReading() {
-  if (savedCurrent.value) return true
-  const entry: JournalEntry = {
-    id: crypto.randomUUID(),
-    readingId: currentReadingId.value,
-    createdAt: new Date().toISOString(),
-    question: question.value,
-    theme: theme.value,
-    spread: spreadId.value,
-    cards: prepared.value.map(draw => ({ ...draw })),
-    interpretation: interpretation.value,
-    note: note.value,
-  }
-  const nextJournal = [entry, ...journal.value]
-  const saved = storage.saveJournal(nextJournal)
-  recordStorage('journal', saved)
-  if (!saved) return false
-  journal.value = nextJournal
-  currentJournalId.value = entry.id
-  savedCurrent.value = true
-  return true
-}
-
-function updateNote(entry: JournalEntry) {
-  const found = journal.value.find(item => item.id === entry.id)
-  if (found) found.note = entry.note
-  recordStorage('journal', storage.saveJournal(journal.value))
-}
-
-function persistCurrentNote(value = note.value) {
-  window.clearTimeout(noteTimer)
-  noteTimer = undefined
-  if (!savedCurrent.value || !currentJournalId.value) return
-  const nextJournal = journal.value.map(entry => entry.id === currentJournalId.value ? { ...entry, note: value } : entry)
-  const saved = storage.saveJournal(nextJournal)
-  recordStorage('journal', saved)
-  if (saved) journal.value = nextJournal
-}
-
-function removeJournal(id: string) {
-  if (!window.confirm('确定删除这条塔罗日记吗？删除后无法恢复。')) return
-  const removed = journal.value.find(item => item.id === id)
-  const nextJournal = journal.value.filter(item => item.id !== id)
-  const saved = storage.saveJournal(nextJournal)
-  recordStorage('journal', saved)
-  if (!saved) return
-  journal.value = nextJournal
-  if (removed) {
-    const readingId = removed.readingId ?? readingIdFor(removed.cards)
-    const nextFavorites = favoriteReadings.value.filter(item => item !== readingId)
-    const favoritesSaved = storage.saveFavoriteReadings(nextFavorites)
-    recordStorage('favoriteReadings', favoritesSaved)
-    if (favoritesSaved) favoriteReadings.value = nextFavorites
-  }
-  selectedJournal.value = null
-}
-
-function selectJournal(entry: JournalEntry) {
-  selectedJournal.value = entry
-}
-
 function toggleFavorite(id: string) {
   const next = favorites.value.includes(id)
     ? favorites.value.filter(item => item !== id)
@@ -288,20 +200,6 @@ function toggleFavorite(id: string) {
   const saved = storage.saveFavorites(next)
   recordStorage('favorites', saved)
   if (saved) favorites.value = next
-}
-
-function toggleReadingFavorite(id: string) {
-  if (!favoriteReadings.value.includes(id) && !savedCurrent.value && !saveReading()) return
-  const next = favoriteReadings.value.includes(id)
-    ? favoriteReadings.value.filter(item => item !== id)
-    : [...favoriteReadings.value, id]
-  const saved = storage.saveFavoriteReadings(next)
-  recordStorage('favoriteReadings', saved)
-  if (saved) favoriteReadings.value = next
-}
-
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 }
 
 function playTone() {
@@ -353,7 +251,6 @@ function trapModalFocus(event: KeyboardEvent) {
 }
 
 function clearTimers() {
-  if (noteTimer) persistCurrentNote()
   window.clearTimeout(shuffleTimer)
   window.clearInterval(typeTimer)
 }
@@ -394,7 +291,6 @@ onBeforeUnmount(() => {
         <span>LUNA ARCANA</span>
       </button>
       <nav aria-label="主导航">
-        <button :class="{ active: view === 'journal' }" :aria-current="view === 'journal' ? 'page' : undefined" @click="navigate('journal')">日记</button>
         <button :class="{ active: view === 'collection' }" :aria-current="view === 'collection' ? 'page' : undefined" @click="navigate('collection')">牌库</button>
         <button class="icon-button" :class="{ active: view === 'settings' }" :aria-current="view === 'settings' ? 'page' : undefined" aria-label="设置" @click="navigate('settings')">◌</button>
       </nav>
@@ -419,9 +315,9 @@ onBeforeUnmount(() => {
           <p>今日塔罗</p>
         </div>
         <div class="home-stats">
-          <span><b>{{ journal.length }}</b> 次私密记录</span>
           <span><b>{{ favorites.length }}</b> 张收藏牌</span>
           <span><b>78</b> 张完整牌库</span>
+          <span><b>100%</b> 本地运行</span>
         </div>
       </section>
 
@@ -500,7 +396,7 @@ onBeforeUnmount(() => {
           @pointerup="endDeckDrag"
           @pointercancel="endDeckDrag"
         >
-          <button v-for="(card, index) in remainingDeck" :key="card.id" :aria-label="`选择牌组中的第 ${index + 1} 张牌`" @click.stop="chooseDeckCard(card)">
+          <button v-for="(card, index) in remainingDeck" :key="card.id" :data-card-id="card.id" :aria-label="`选择牌组中的第 ${index + 1} 张牌`" @click.stop="chooseDeckCard(card)">
             <TarotCard facedown :deck="settings.deck" />
           </button>
         </div>
@@ -540,41 +436,10 @@ onBeforeUnmount(() => {
           <article class="interpretation glass">
             <div class="interpretation-head">
               <div><span>本地智能解读</span><h2>牌面讯息</h2></div>
-              <button class="favorite-button" :class="{ active: favoriteReadings.includes(currentReadingId) }" @click="toggleReadingFavorite(currentReadingId)" :aria-label="favoriteReadings.includes(currentReadingId) ? '取消收藏解读' : '收藏解读'">♡</button>
             </div>
             <p class="typewriter">{{ typedInterpretation }}</p>
-            <div class="note-field">
-              <label for="note">我的感悟</label>
-              <textarea id="note" v-model="note" rows="4" maxlength="2000" placeholder="记录此刻浮现的想法，只有你能看见。" />
-            </div>
-            <button class="secondary-button full" :disabled="savedCurrent" @click="saveReading">{{ savedCurrent ? '已保存到塔罗日记' : '保存这次占卜' }}</button>
           </article>
         </div>
-      </section>
-
-      <section v-else-if="view === 'journal'" class="page-view view-enter">
-        <button class="back-button page-back" @click="navigate('home')">← 返回首页</button>
-        <header class="page-heading"><div><p>私人记录</p><h1>塔罗日记</h1></div><div v-if="journal.length" class="segmented" aria-label="日记筛选"><button :class="{ active: journalFilter === 'all' }" @click="journalFilter = 'all'">全部 {{ journal.length }}</button><button :class="{ active: journalFilter === 'favorites' }" @click="journalFilter = 'favorites'">收藏解读</button></div></header>
-        <div v-if="journal.length" class="journal-layout" :class="{ 'has-selection': selectedJournal }">
-          <div v-if="filteredJournal.length" class="journal-list glass">
-            <button v-for="entry in filteredJournal" :key="entry.id" class="journal-item" :class="{ active: selectedJournal?.id === entry.id }" @click="selectJournal(entry)">
-              <time>{{ formatDate(entry.createdAt) }}</time>
-              <h3>{{ entry.question }}</h3>
-              <p>{{ spreads[entry.spread].name }} / {{ themeNames[entry.theme] }}</p>
-              <div class="mini-cards"><span v-for="card in entry.cards" :key="card.position">{{ card.card.name }} {{ card.reversed ? '逆' : '正' }}</span></div>
-            </button>
-          </div>
-          <div v-else class="journal-filter-empty glass"><span>♡</span><p>还没有收藏的解读。</p><button class="text-button" @click="journalFilter = 'all'">查看全部记录</button></div>
-          <article v-if="selectedJournal" class="journal-detail glass">
-            <button class="journal-detail-back" @click="selectedJournal = null">← 返回记录</button>
-            <header><div><time>{{ formatDate(selectedJournal.createdAt) }}</time><h2>{{ selectedJournal.question }}</h2></div><button class="danger-button" @click="removeJournal(selectedJournal.id)">删除</button></header>
-            <p class="preserve-lines">{{ selectedJournal.interpretation }}</p>
-            <label for="journal-note">个人备注</label>
-            <textarea id="journal-note" v-model="selectedJournal.note" rows="5" maxlength="2000" placeholder="写下后续发生的事或新的理解。" @change="updateNote(selectedJournal)" />
-          </article>
-          <div v-else class="journal-detail empty-detail glass"><span>✦</span><p>选择一条记录，重读当时的讯息。</p></div>
-        </div>
-        <div v-else class="empty-state glass"><span>☾</span><h2>日记还没有内容</h2><p>完成一次占卜并保存，牌面与感悟会留在这里。</p><button class="primary-button" @click="startReading"><span>抽第一张牌</span><b>→</b></button></div>
       </section>
 
       <section v-else-if="view === 'collection'" class="page-view view-enter">
@@ -603,7 +468,7 @@ onBeforeUnmount(() => {
           </div></fieldset>
           <div class="setting-row"><div><strong>仪式动画</strong><span>洗牌、翻牌与文字逐字显现</span></div><label class="switch"><input v-model="settings.animations" type="checkbox" aria-label="仪式动画"><span /></label></div>
           <div class="setting-row"><div><strong>轻柔音效</strong><span>翻牌时播放短促的冥想音</span></div><label class="switch"><input v-model="settings.sound" type="checkbox" aria-label="轻柔音效"><span /></label></div>
-          <div class="privacy-note"><span>⌾</span><p><strong>你的数据只属于你</strong>问题、解读和日记仅存储在本机 LocalStorage。清除浏览器数据会同时删除记录。</p></div>
+          <div class="privacy-note"><span>⌾</span><p><strong>你的数据只属于你</strong>占卜问题和解读不会被保存；只有收藏牌与设置会留在当前浏览器中。</p></div>
         </div>
       </section>
     </main>

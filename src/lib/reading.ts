@@ -14,7 +14,7 @@ export function composeReading(question: string, theme: Theme, cards: DrawnCard[
   const trend = last
     ? `未来趋势\n局势会沿着“${last.card.keywords.join('、')}”的方向展开。这里显示的是当前能量的延伸，不是不可改变的预言。你的选择、边界和行动仍会改变结果。`
     : ''
-  const advice = `行动建议\n${cards.map(item => item.card.advice).join(' ')} 建议在七天后回看这次记录，检查实际发生的变化。`
+  const advice = `行动建议\n${cards.map(item => item.card.advice).join(' ')} 建议在七天后重新检视这个问题，观察实际发生的变化。`
   return `你的问题\n${title}\n\n${themeNames[theme]}主题解读\n${sections.join('\n\n')}\n\n${trend}\n\n${advice}`
 }
 

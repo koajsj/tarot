@@ -22,18 +22,6 @@ export interface DrawnCard {
   position: string
 }
 
-export interface JournalEntry {
-  id: string
-  readingId?: string
-  createdAt: string
-  question: string
-  theme: Theme
-  spread: SpreadId
-  cards: DrawnCard[]
-  interpretation: string
-  note: string
-}
-
 export interface Settings {
   deck: 'celestial' | 'aurora' | 'obsidian'
   animations: boolean
