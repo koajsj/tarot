@@ -28,6 +28,8 @@ const modalRef = ref<HTMLElement | null>(null)
 const libraryFilter = ref<'all' | 'favorites'>('all')
 const shuffling = ref(false)
 const deckDragging = ref(false)
+const quickMode = ref(false)
+const typing = ref(false)
 type StorageScope = 'settings' | 'favorites'
 const storageFailures = ref<Set<StorageScope>>(new Set())
 const reducedMotion = ref(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
@@ -70,6 +72,7 @@ function navigate(next: View) {
 
 function startReading() {
   clearTimers()
+  quickMode.value = false
   question.value = ''
   theme.value = 'life'
   spreadId.value = 'single'
@@ -80,6 +83,7 @@ function startReading() {
 }
 
 function quickDraw() {
+  quickMode.value = true
   question.value = '此刻我最需要知道什么？'
   theme.value = 'life'
   spreadId.value = 'single'
@@ -110,6 +114,12 @@ function beginShuffle() {
 function enterDraw() {
   view.value = 'draw'
   scrollToTop()
+  if (quickMode.value) void nextTick(randomDeckCard)
+}
+
+function returnToQuestion() {
+  quickMode.value = false
+  navigate('question')
 }
 
 function selectDeckCard(card: TarotCardType, focusTarget: 'deck' | 'random' = 'deck') {
@@ -182,14 +192,19 @@ function runTypewriter() {
   window.clearInterval(typeTimer)
   if (!motionEnabled.value) {
     typedInterpretation.value = interpretation.value
+    typing.value = false
     return
   }
   typedInterpretation.value = ''
+  typing.value = true
   let index = 0
   typeTimer = window.setInterval(() => {
     typedInterpretation.value += interpretation.value.slice(index, index + 3)
     index += 3
-    if (index >= interpretation.value.length) window.clearInterval(typeTimer)
+    if (index >= interpretation.value.length) {
+      window.clearInterval(typeTimer)
+      typing.value = false
+    }
   }, 20)
 }
 
@@ -253,6 +268,7 @@ function trapModalFocus(event: KeyboardEvent) {
 function clearTimers() {
   window.clearTimeout(shuffleTimer)
   window.clearInterval(typeTimer)
+  typing.value = false
 }
 
 function scrollToTop() {
@@ -358,12 +374,12 @@ onBeforeUnmount(() => {
       </section>
 
       <section v-else-if="view === 'shuffle'" class="ritual-view view-enter">
-        <button class="context-back" @click="navigate('question')">← 返回问题</button>
+        <button class="context-back" @click="returnToQuestion">← 返回问题</button>
         <div class="ritual-copy" aria-live="polite">
           <p>{{ shuffling ? '请保持呼吸，心中默念你的问题' : '牌已经准备好了' }}</p>
           <h2>{{ shuffling ? '正在洗牌' : '跟随你的直觉' }}</h2>
         </div>
-        <div class="shuffle-stage" :class="{ shuffling }" aria-live="polite">
+        <div class="shuffle-stage" :class="{ shuffling }" aria-hidden="true">
           <TarotCard
             v-for="index in shuffleCards"
             :key="index"
@@ -374,11 +390,11 @@ onBeforeUnmount(() => {
           />
           <div class="shuffle-glow" />
         </div>
-        <button v-if="!shuffling" class="primary-button" @click="enterDraw"><span>开始抽牌</span><b>→</b></button>
+        <button v-if="!shuffling" class="primary-button" @click="enterDraw"><span>{{ quickMode ? '随机揭牌' : '开始抽牌' }}</span><b>→</b></button>
       </section>
 
       <section v-else-if="view === 'draw'" class="draw-view view-enter">
-        <button class="context-back" @click="navigate('question')">← 返回问题</button>
+        <button class="context-back" @click="returnToQuestion">← 返回问题</button>
         <div class="ritual-copy" aria-live="polite">
           <p>{{ currentSpread.name }}</p>
           <h2>{{ canFinish ? '牌面已经显现' : `选择第 ${prepared.length + 1} 张牌` }}</h2>
@@ -437,7 +453,7 @@ onBeforeUnmount(() => {
             <div class="interpretation-head">
               <div><span>本地智能解读</span><h2>牌面讯息</h2></div>
             </div>
-            <p class="typewriter">{{ typedInterpretation }}</p>
+            <p class="typewriter" :class="{ 'is-typing': typing }">{{ typedInterpretation }}</p>
           </article>
         </div>
       </section>

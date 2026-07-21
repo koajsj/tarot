@@ -105,7 +105,8 @@ textarea:focus { border-color: rgba(165, 163, 226, .7); background: rgba(5, 6, 2
 fieldset { padding: 0; margin: 34px 0; border: 0; }
 .choice-grid { display: grid; gap: 9px; grid-template-columns: repeat(5, 1fr); }
 .choice-grid label { min-height: 48px; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 15px; color: var(--muted); cursor: pointer; transition: .25s var(--ease); }
-.choice-grid label:hover, .choice-grid label.selected, .spread-grid label:hover, .spread-grid label.selected { border-color: var(--line-strong); background: rgba(216, 189, 123, .07); color: var(--text); }
+.choice-grid label:hover, .choice-grid label:focus-within, .choice-grid label.selected, .spread-grid label:hover, .spread-grid label:focus-within, .spread-grid label.selected { border-color: var(--line-strong); background: rgba(216, 189, 123, .07); color: var(--text); }
+.choice-grid label:focus-within, .spread-grid label:focus-within { outline: 2px solid var(--accent-strong); outline-offset: 3px; }
 .choice-grid input, .spread-grid input, .deck-options input { position: absolute; opacity: 0; pointer-events: none; }
 .spread-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .spread-grid label { display: grid; grid-template-columns: 58px 1fr; grid-template-rows: auto auto; column-gap: 17px; border: 1px solid var(--line); border-radius: 18px; padding: 18px; cursor: pointer; transition: .25s var(--ease); }
@@ -164,7 +165,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 .favorite-button { width: 42px; height: 42px; border-radius: 13px; border: 1px solid var(--line); background: rgba(255,255,255,.04); font-size: 22px; }
 .favorite-button.active { color: var(--gold-bright); background: rgba(216,189,123,.1); border-color: var(--line-strong); }
 .typewriter { min-height: 300px; white-space: pre-wrap; color: #c8c7d1; line-height: 2; font-size: 14px; }
-.typewriter::after { content: ''; display: inline-block; width: 1px; height: 1em; background: var(--gold); margin-left: 3px; vertical-align: -.12em; animation: blink 1s step-end infinite; }
+.typewriter.is-typing::after { content: ''; display: inline-block; width: 1px; height: 1em; background: var(--gold); margin-left: 3px; vertical-align: -.12em; animation: blink 1s step-end infinite; }
 
 .page-view { width: min(calc(100% - 40px), 1180px); min-height: 100dvh; margin: 0 auto; padding: 130px 0 80px; }
 .page-heading { display: flex; justify-content: space-between; align-items: end; margin-bottom: 36px; }
@@ -199,6 +200,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 .deck-options label .tarot-card { width: 105px; transition: .35s var(--ease); }
 .deck-options label.selected { color: var(--gold-bright); }
 .deck-options label.selected .tarot-card { transform: translateY(-8px); filter: drop-shadow(0 15px 24px rgba(97, 87, 160, .3)); }
+.deck-options label:focus-within { color: var(--gold-bright); outline: 2px solid var(--accent-strong); outline-offset: 6px; border-radius: var(--radius-card); }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 0; border-top: 1px solid var(--line); }
 .setting-row div { display: flex; flex-direction: column; gap: 6px; }
 .setting-row strong { font-size: 14px; }.setting-row span { color: var(--quiet); font-size: 12px; }
@@ -207,6 +209,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 .switch span { display: block; width: 48px; height: 28px; border-radius: 99px; background: rgba(255,255,255,.12); cursor: pointer; transition: background .25s; }
 .switch span::after { content: ''; position: absolute; width: 22px; height: 22px; top: 3px; left: 3px; border-radius: 50%; background: #aaa9b7; transition: transform .3s var(--ease), background .25s; }
 .switch input:checked + span { background: rgba(165,163,226,.42); }.switch input:checked + span::after { transform: translateX(20px); background: #f0eff9; }
+.switch input:focus-visible + span { outline: 2px solid var(--accent-strong); outline-offset: 3px; }
 .privacy-note { display: flex; align-items: start; gap: 14px; border-radius: 16px; background: rgba(165,163,226,.06); padding: 18px; margin-top: 16px; }
 .privacy-note > span { color: var(--accent); font-size: 20px; }.privacy-note p { margin: 0; color: var(--quiet); font-size: 12px; line-height: 1.65; }.privacy-note strong { display: block; color: var(--muted); margin-bottom: 4px; }
 
