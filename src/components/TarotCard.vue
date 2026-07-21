@@ -25,6 +25,8 @@ const suitMark = computed(() => ({
   pentacles: '⬡',
 }[props.card?.category ?? 'major']))
 
+const frontStyle = computed(() => props.card?.image ? { '--card-artwork': `url("${props.card.image}")` } : undefined)
+
 const celestialCardBack = `${import.meta.env.BASE_URL}assets/celestial-card-back.png`
 </script>
 
@@ -34,7 +36,7 @@ const celestialCardBack = `${import.meta.env.BASE_URL}assets/celestial-card-back
       <div class="tarot-card__back" :style="deck === 'celestial' ? { backgroundImage: `url(${celestialCardBack})` } : undefined">
         <span class="back-orbit" aria-hidden="true" />
       </div>
-      <div class="tarot-card__front" :class="{ reversed }">
+      <div class="tarot-card__front" :class="{ reversed }" :style="frontStyle">
         <div class="card-index">{{ card?.number }}</div>
         <div class="card-illustration" aria-hidden="true">
           <span class="orbit orbit-one" />

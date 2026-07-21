@@ -1,6 +1,21 @@
 import type { Suit, TarotCard, Theme } from '../types'
 
-const cardImage = `${import.meta.env.BASE_URL}assets/celestial-card-back.png`
+const artworkPalette: Record<Suit, [string, string]> = {
+  major: ['#c8b36f', '#62549a'],
+  wands: ['#d19a62', '#743f58'],
+  cups: ['#79aaca', '#4c4c91'],
+  swords: ['#a5b5d6', '#3f6283'],
+  pentacles: ['#b8a66e', '#476c63'],
+}
+
+function cardArtwork(suit: Suit, index: number) {
+  const [light, glow] = artworkPalette[suit]
+  const offset = 58 + (index * 17) % 160
+  const radius = 54 + (index * 11) % 78
+  const points = 5 + index % 7
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 600"><defs><radialGradient id="g"><stop stop-color="${glow}" stop-opacity=".65"/><stop offset="1" stop-color="#090c1e" stop-opacity="0"/></radialGradient></defs><rect width="400" height="600" fill="#0b0e21"/><circle cx="200" cy="275" r="190" fill="url(#g)"/><g fill="none" stroke="${light}" stroke-opacity=".38"><circle cx="200" cy="275" r="${radius}"/><ellipse cx="200" cy="275" rx="${radius + 46}" ry="${Math.max(40, radius - 22)}" transform="rotate(${index * 13} 200 275)"/><path d="M${offset} 450 L200 105 L${400 - offset} 450 Z"/></g><g fill="${light}">${Array.from({ length: points }, (_, point) => { const x = 48 + ((point * 73 + index * 29) % 304); const y = 92 + ((point * 97 + index * 37) % 360); const size = 2 + (point + index) % 4; return `<circle cx="${x}" cy="${y}" r="${size}" opacity="${0.35 + (point % 3) * 0.2}"/>` }).join('')}<circle cx="200" cy="275" r="8"/><path d="M200 235l8 32 32 8-32 8-8 32-8-32-32-8 32-8z" opacity=".88"/></g></svg>`
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
+}
 
 type MajorSeed = [string, string, string[], string, string]
 
@@ -71,7 +86,7 @@ function majorCard(seed: MajorSeed, index: number): TarotCard {
     category: 'major',
     number: index === 0 ? '0' : String(index),
     keywords,
-    image: cardImage,
+    image: cardArtwork('major', index),
     upright,
     reversed,
     readings,
@@ -90,7 +105,7 @@ function minorCard(suit: typeof suits[number], rank: typeof ranks[number], index
     category: suit.id,
     number: String(index + 1),
     keywords: [rank.key, ...suit.keywords.slice(0, 2)],
-    image: cardImage,
+    image: cardArtwork(suit.id, index),
     upright: `${context}${rank.up} 此牌的核心不是追求立刻确定，而是让${suit.focus}在合适的节奏中逐步显现。`,
     reversed: `${context}${rank.rev} 逆位并非单纯的坏消息，它更像是能量向内、过度或不足的提醒。`,
     readings,
@@ -128,7 +143,13 @@ export const spreads = {
 
 export function assertCompleteDeck() {
   const ids = new Set(tarotDeck.map(card => card.id))
+  const expectedCounts: Record<Suit, number> = { major: 22, wands: 14, cups: 14, swords: 14, pentacles: 14 }
+  const categoryCounts = tarotDeck.reduce<Record<Suit, number>>((counts, card) => {
+    counts[card.category] += 1
+    return counts
+  }, { major: 0, wands: 0, cups: 0, swords: 0, pentacles: 0 })
   return tarotDeck.length === 78 && ids.size === 78 && tarotDeck.every(card =>
-    card.name && card.englishName && card.keywords.length >= 3 && card.upright && card.reversed && card.advice && card.image,
-  )
+    card.name && card.englishName && card.keywords.length >= 3 && card.upright && card.reversed && card.advice && card.image
+      && (Object.keys(themeNames) as Theme[]).every(theme => card.readings[theme]?.trim()),
+  ) && (Object.keys(expectedCounts) as Suit[]).every(category => categoryCounts[category] === expectedCounts[category])
 }

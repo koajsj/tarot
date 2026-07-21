@@ -24,6 +24,7 @@ export interface DrawnCard {
 
 export interface JournalEntry {
   id: string
+  readingId?: string
   createdAt: string
   question: string
   theme: Theme

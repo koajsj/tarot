@@ -24,7 +24,9 @@ const settings = ref<Settings>(storage.settings())
 const selectedJournal = ref<JournalEntry | null>(null)
 const selectedCard = ref<TarotCardType | null>(null)
 const drawFanRef = ref<HTMLElement | null>(null)
+const modalRef = ref<HTMLElement | null>(null)
 const libraryFilter = ref<'all' | 'favorites'>('all')
+const journalFilter = ref<'all' | 'favorites'>('all')
 const shuffling = ref(false)
 const deckDragging = ref(false)
 const note = ref('')
@@ -36,6 +38,7 @@ let typeTimer: number | undefined
 let dragStartX = 0
 let dragStartScroll = 0
 let dragDistance = 0
+let lastFocusedElement: HTMLElement | null = null
 
 const currentSpread = computed(() => spreads[spreadId.value])
 const visibleCards = computed(() => prepared.value.slice(0, revealedCount.value))
@@ -43,12 +46,18 @@ const canFinish = computed(() => revealedCount.value === prepared.value.length &
 const filteredDeck = computed(() => libraryFilter.value === 'favorites'
   ? tarotDeck.filter(card => favorites.value.includes(card.id))
   : tarotDeck)
+const readingIdFor = (cards: DrawnCard[]) => cards.map(item => `${item.card.id}-${item.reversed}`).join('|')
+const filteredJournal = computed(() => journalFilter.value === 'favorites'
+  ? journal.value.filter(entry => favoriteReadings.value.includes(entry.readingId ?? readingIdFor(entry.cards)))
+  : journal.value)
 const todayName = computed(() => new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' }).format(new Date()))
 const currentReadingId = computed(() => prepared.value.map(item => `${item.card.id}-${item.reversed}`).join('|'))
+const deckIsComplete = assertCompleteDeck()
 
 watch(settings, value => storage.saveSettings(value), { deep: true })
 watch(favorites, value => storage.saveFavorites(value), { deep: true })
 watch(favoriteReadings, value => storage.saveFavoriteReadings(value), { deep: true })
+watch(journalFilter, () => { selectedJournal.value = null })
 
 function navigate(next: View) {
   clearTimers()
@@ -167,6 +176,7 @@ function saveReading() {
   if (savedCurrent.value) return
   const entry: JournalEntry = {
     id: crypto.randomUUID(),
+    readingId: currentReadingId.value,
     createdAt: new Date().toISOString(),
     question: question.value,
     theme: theme.value,
@@ -200,6 +210,7 @@ function toggleFavorite(id: string) {
 }
 
 function toggleReadingFavorite(id: string) {
+  if (!favoriteReadings.value.includes(id) && !savedCurrent.value) saveReading()
   favoriteReadings.value = favoriteReadings.value.includes(id)
     ? favoriteReadings.value.filter(item => item !== id)
     : [...favoriteReadings.value, id]
@@ -228,9 +239,33 @@ function playTone() {
 }
 
 async function openCard(card: TarotCardType) {
+  lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
   selectedCard.value = card
   await nextTick()
   document.querySelector<HTMLButtonElement>('.modal-close')?.focus()
+}
+
+async function closeCard() {
+  selectedCard.value = null
+  await nextTick()
+  lastFocusedElement?.focus()
+  lastFocusedElement = null
+}
+
+function trapModalFocus(event: KeyboardEvent) {
+  if (event.key !== 'Tab' || !modalRef.value) return
+  const focusable = [...modalRef.value.querySelectorAll<HTMLElement>('button, [href], input, textarea, [tabindex]:not([tabindex="-1"])')]
+    .filter(element => !element.hasAttribute('disabled'))
+  if (!focusable.length) return
+  const first = focusable[0]
+  const last = focusable[focusable.length - 1]
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault()
+    first.focus()
+  }
 }
 
 function clearTimers() {
@@ -238,12 +273,21 @@ function clearTimers() {
   window.clearInterval(typeTimer)
 }
 
-onBeforeUnmount(clearTimers)
+watch(selectedCard, card => {
+  document.body.style.overflow = card ? 'hidden' : ''
+})
+
+onBeforeUnmount(() => {
+  clearTimers()
+  document.body.style.overflow = ''
+})
 </script>
 
 <template>
   <div class="app-shell" :class="[{ 'motion-off': !settings.animations }, `theme-deck-${settings.deck}`]">
     <StarField />
+
+    <a class="skip-link" href="#main-content">跳到主要内容</a>
 
     <header class="topbar glass">
       <button class="brand" aria-label="返回首页" @click="navigate('home')">
@@ -257,11 +301,11 @@ onBeforeUnmount(clearTimers)
       </nav>
     </header>
 
-    <main>
+    <main id="main-content" tabindex="-1">
       <section v-if="view === 'home'" class="home view-enter">
         <div class="hero-copy">
           <p class="eyebrow">{{ todayName }}</p>
-          <h1>在静默中，<br><em>听见你的答案</em></h1>
+          <h1>在静默中，<span>听见你的答案</span></h1>
           <p class="hero-body">一处只属于你的塔罗空间。让问题沉静下来，再抽出此刻需要看见的牌。</p>
           <div class="hero-actions">
             <button class="primary-button" @click="startReading"><span>开始占卜</span><b>→</b></button>
@@ -275,7 +319,7 @@ onBeforeUnmount(clearTimers)
           <TarotCard facedown :deck="settings.deck" class="hero-card" />
           <p>今日塔罗</p>
         </div>
-        <div class="home-stats glass">
+        <div class="home-stats">
           <span><b>{{ journal.length }}</b> 次私密记录</span>
           <span><b>{{ favorites.length }}</b> 张收藏牌</span>
           <span><b>78</b> 张完整牌库</span>
@@ -285,14 +329,13 @@ onBeforeUnmount(clearTimers)
       <section v-else-if="view === 'question'" class="form-view view-enter page-narrow">
         <button class="back-button" @click="navigate('home')">← 返回</button>
         <header class="section-heading">
-          <span class="step-mark">准备</span>
           <h2>把问题交给牌面</h2>
           <p>问题越诚实，镜子越清晰。塔罗提供视角，决定仍然属于你。</p>
         </header>
         <form class="reading-form glass" @submit.prevent="beginShuffle">
           <label for="question">你想询问什么？</label>
-          <textarea id="question" v-model="question" rows="4" maxlength="160" placeholder="例如：我该如何看待目前工作中的停滞？" />
-          <span class="helper">{{ question.length }} / 160</span>
+          <textarea id="question" v-model="question" rows="4" maxlength="160" aria-describedby="question-limit" placeholder="例如：我该如何看待目前工作中的停滞？" />
+          <span id="question-limit" class="helper">{{ question.length }} / 160</span>
 
           <fieldset>
             <legend>选择主题</legend>
@@ -412,16 +455,17 @@ onBeforeUnmount(clearTimers)
 
       <section v-else-if="view === 'journal'" class="page-view view-enter">
         <button class="back-button page-back" @click="navigate('home')">← 返回首页</button>
-        <header class="page-heading"><div><p>私人记录</p><h1>塔罗日记</h1></div><span>{{ journal.length }} 次占卜</span></header>
+        <header class="page-heading"><div><p>私人记录</p><h1>塔罗日记</h1></div><div v-if="journal.length" class="segmented" aria-label="日记筛选"><button :class="{ active: journalFilter === 'all' }" @click="journalFilter = 'all'">全部 {{ journal.length }}</button><button :class="{ active: journalFilter === 'favorites' }" @click="journalFilter = 'favorites'">收藏解读</button></div></header>
         <div v-if="journal.length" class="journal-layout">
-          <div class="journal-list">
-            <button v-for="entry in journal" :key="entry.id" class="journal-item glass" :class="{ active: selectedJournal?.id === entry.id }" @click="selectedJournal = entry">
+          <div v-if="filteredJournal.length" class="journal-list glass">
+            <button v-for="entry in filteredJournal" :key="entry.id" class="journal-item" :class="{ active: selectedJournal?.id === entry.id }" @click="selectedJournal = entry">
               <time>{{ formatDate(entry.createdAt) }}</time>
               <h3>{{ entry.question }}</h3>
               <p>{{ spreads[entry.spread].name }} / {{ themeNames[entry.theme] }}</p>
               <div class="mini-cards"><span v-for="card in entry.cards" :key="card.position">{{ card.card.name }} {{ card.reversed ? '逆' : '正' }}</span></div>
             </button>
           </div>
+          <div v-else class="journal-filter-empty glass"><span>♡</span><p>还没有收藏的解读。</p><button class="text-button" @click="journalFilter = 'all'">查看全部记录</button></div>
           <article v-if="selectedJournal" class="journal-detail glass">
             <header><div><time>{{ formatDate(selectedJournal.createdAt) }}</time><h2>{{ selectedJournal.question }}</h2></div><button class="danger-button" @click="removeJournal(selectedJournal.id)">删除</button></header>
             <p class="preserve-lines">{{ selectedJournal.interpretation }}</p>
@@ -437,35 +481,37 @@ onBeforeUnmount(clearTimers)
         <button class="back-button page-back" @click="navigate('home')">← 返回首页</button>
         <header class="page-heading"><div><p>完整 78 张</p><h1>塔罗牌库</h1></div><div class="segmented"><button :class="{ active: libraryFilter === 'all' }" @click="libraryFilter = 'all'">全部</button><button :class="{ active: libraryFilter === 'favorites' }" @click="libraryFilter = 'favorites'">收藏 {{ favorites.length }}</button></div></header>
         <div v-if="filteredDeck.length" class="library-grid">
-          <button v-for="card in filteredDeck" :key="card.id" class="library-card" @click="openCard(card)">
-            <TarotCard :card="card" :flipped="true" />
-            <span><strong>{{ card.name }}</strong><small>{{ categoryNames[card.category] }}</small></span>
-            <i :class="{ active: favorites.includes(card.id) }" @click.stop="toggleFavorite(card.id)">♡</i>
-          </button>
+          <article v-for="card in filteredDeck" :key="card.id" class="library-card">
+            <button class="library-card-main" :aria-label="`查看${card.name}详情`" @click="openCard(card)">
+              <TarotCard :card="card" :flipped="true" />
+              <span><strong>{{ card.name }}</strong><small>{{ categoryNames[card.category] }}</small></span>
+            </button>
+            <button class="library-favorite" :class="{ active: favorites.includes(card.id) }" :aria-label="favorites.includes(card.id) ? `取消收藏${card.name}` : `收藏${card.name}`" @click="toggleFavorite(card.id)">♡</button>
+          </article>
         </div>
         <div v-else class="empty-state glass"><span>♡</span><h2>还没有收藏</h2><p>浏览牌库，收藏与你产生共鸣的牌。</p><button class="secondary-button" @click="libraryFilter = 'all'">浏览完整牌库</button></div>
       </section>
 
       <section v-else-if="view === 'settings'" class="settings-view view-enter page-narrow">
         <button class="back-button page-back" @click="navigate('home')">← 返回首页</button>
-        <header class="section-heading"><span class="step-mark">偏好</span><h2>设置你的仪式</h2><p>所有选项只保存在当前浏览器中。</p></header>
+        <header class="section-heading"><h2>设置你的仪式</h2><p>所有选项只保存在当前浏览器中。</p></header>
         <div class="settings-panel glass">
           <fieldset><legend>牌背样式</legend><div class="deck-options">
             <label v-for="deck in ([['celestial', '星图'], ['aurora', '极光'], ['obsidian', '曜石']] as const)" :key="deck[0]" :class="{ selected: settings.deck === deck[0] }">
               <input v-model="settings.deck" type="radio" :value="deck[0]"><TarotCard facedown :deck="deck[0]" /><span>{{ deck[1] }}</span>
             </label>
           </div></fieldset>
-          <div class="setting-row"><div><strong>仪式动画</strong><span>洗牌、翻牌与文字逐字显现</span></div><label class="switch"><input v-model="settings.animations" type="checkbox"><span /></label></div>
-          <div class="setting-row"><div><strong>轻柔音效</strong><span>翻牌时播放短促的冥想音</span></div><label class="switch"><input v-model="settings.sound" type="checkbox"><span /></label></div>
+          <div class="setting-row"><div><strong>仪式动画</strong><span>洗牌、翻牌与文字逐字显现</span></div><label class="switch"><input v-model="settings.animations" type="checkbox" aria-label="仪式动画"><span /></label></div>
+          <div class="setting-row"><div><strong>轻柔音效</strong><span>翻牌时播放短促的冥想音</span></div><label class="switch"><input v-model="settings.sound" type="checkbox" aria-label="轻柔音效"><span /></label></div>
           <div class="privacy-note"><span>⌾</span><p><strong>你的数据只属于你</strong>问题、解读和日记仅存储在本机 LocalStorage。清除浏览器数据会同时删除记录。</p></div>
         </div>
       </section>
     </main>
 
-    <div v-if="selectedCard" class="modal-layer" role="dialog" aria-modal="true" :aria-label="selectedCard.name" @click.self="selectedCard = null" @keydown.esc="selectedCard = null">
+    <div v-if="selectedCard" ref="modalRef" class="modal-layer" role="dialog" aria-modal="true" :aria-label="selectedCard.name" @click.self="closeCard" @keydown.esc="closeCard" @keydown.tab="trapModalFocus">
       <article class="card-modal glass">
-        <button class="modal-close" aria-label="关闭" @click="selectedCard = null">×</button>
-        <div class="modal-card-visual"><TarotCard :card="selectedCard" :flipped="true" /><button class="favorite-button" :class="{ active: favorites.includes(selectedCard.id) }" @click="toggleFavorite(selectedCard.id)">♡</button></div>
+        <button class="modal-close" aria-label="关闭" @click="closeCard">×</button>
+        <div class="modal-card-visual"><TarotCard :card="selectedCard" :flipped="true" /><button class="favorite-button" :class="{ active: favorites.includes(selectedCard.id) }" :aria-label="favorites.includes(selectedCard.id) ? `取消收藏${selectedCard.name}` : `收藏${selectedCard.name}`" @click="toggleFavorite(selectedCard.id)">♡</button></div>
         <div class="modal-copy">
           <p>{{ categoryNames[selectedCard.category] }} / {{ selectedCard.number }}</p>
           <h2>{{ selectedCard.name }}</h2><span>{{ selectedCard.englishName }}</span>
@@ -479,6 +525,6 @@ onBeforeUnmount(clearTimers)
       </article>
     </div>
 
-    <div v-if="!assertCompleteDeck()" class="data-error">牌库数据未完整载入，请刷新页面。</div>
+    <div v-if="!deckIsComplete" class="data-error">牌库数据未完整载入，请刷新页面。</div>
   </div>
 </template>
