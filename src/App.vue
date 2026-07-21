@@ -118,8 +118,17 @@ function enterDraw() {
 }
 
 function returnToQuestion() {
+  clearTimers()
   quickMode.value = false
-  navigate('question')
+  shuffling.value = false
+  prepared.value = []
+  deckOrder.value = []
+  selectedDeckIds.value = []
+  interpretation.value = ''
+  typedInterpretation.value = ''
+  selectedCard.value = null
+  view.value = 'question'
+  scrollToTop()
 }
 
 function selectDeckCard(card: TarotCardType, focusTarget: 'deck' | 'random' = 'deck') {
@@ -443,7 +452,7 @@ onBeforeUnmount(() => {
             <p>{{ currentSpread.name }}</p>
             <h2>{{ question }}</h2>
             <div class="result-cards">
-              <button v-for="draw in prepared" :key="draw.position" @click="openCard(draw.card)">
+              <button v-for="draw in prepared" :key="draw.position" :aria-label="`查看${draw.position}的${draw.card.name}${draw.reversed ? '逆位' : '正位'}详情`" @click="openCard(draw.card)">
                 <TarotCard :card="draw.card" :reversed="draw.reversed" :flipped="true" :label="draw.position" />
                 <small>{{ draw.reversed ? '逆位' : '正位' }}</small>
               </button>
@@ -460,14 +469,14 @@ onBeforeUnmount(() => {
 
       <section v-else-if="view === 'collection'" class="page-view view-enter">
         <button class="back-button page-back" @click="navigate('home')">← 返回首页</button>
-        <header class="page-heading"><div><p>完整 78 张</p><h1>塔罗牌库</h1></div><div class="segmented"><button :class="{ active: libraryFilter === 'all' }" @click="libraryFilter = 'all'">全部</button><button :class="{ active: libraryFilter === 'favorites' }" @click="libraryFilter = 'favorites'">收藏 {{ favorites.length }}</button></div></header>
+        <header class="page-heading"><div><p>完整 78 张</p><h1>塔罗牌库</h1></div><div class="segmented" aria-label="牌库筛选"><button :class="{ active: libraryFilter === 'all' }" :aria-pressed="libraryFilter === 'all'" @click="libraryFilter = 'all'">全部</button><button :class="{ active: libraryFilter === 'favorites' }" :aria-pressed="libraryFilter === 'favorites'" @click="libraryFilter = 'favorites'">收藏 {{ favorites.length }}</button></div></header>
         <div v-if="filteredDeck.length" class="library-grid">
           <article v-for="card in filteredDeck" :key="card.id" class="library-card">
             <button class="library-card-main" :aria-label="`查看${card.name}详情`" @click="openCard(card)">
               <TarotCard :card="card" :flipped="true" />
               <span><strong>{{ card.name }}</strong><small>{{ categoryNames[card.category] }}</small></span>
             </button>
-            <button class="library-favorite" :class="{ active: favorites.includes(card.id) }" :aria-label="favorites.includes(card.id) ? `取消收藏${card.name}` : `收藏${card.name}`" @click="toggleFavorite(card.id)">♡</button>
+            <button class="library-favorite" :class="{ active: favorites.includes(card.id) }" :aria-label="favorites.includes(card.id) ? `取消收藏${card.name}` : `收藏${card.name}`" :aria-pressed="favorites.includes(card.id)" @click="toggleFavorite(card.id)">♡</button>
           </article>
         </div>
         <div v-else class="empty-state glass"><span>♡</span><h2>还没有收藏</h2><p>浏览牌库，收藏与你产生共鸣的牌。</p><button class="secondary-button" @click="libraryFilter = 'all'">浏览完整牌库</button></div>
@@ -492,7 +501,7 @@ onBeforeUnmount(() => {
     <div v-if="selectedCard" ref="modalRef" class="modal-layer" role="dialog" aria-modal="true" :aria-label="selectedCard.name" @click.self="closeCard" @keydown.esc="closeCard" @keydown.tab="trapModalFocus">
       <article class="card-modal glass">
         <button class="modal-close" aria-label="关闭" @click="closeCard">×</button>
-        <div class="modal-card-visual"><TarotCard :card="selectedCard" :flipped="true" /><button class="favorite-button" :class="{ active: favorites.includes(selectedCard.id) }" :aria-label="favorites.includes(selectedCard.id) ? `取消收藏${selectedCard.name}` : `收藏${selectedCard.name}`" @click="toggleFavorite(selectedCard.id)">♡</button></div>
+        <div class="modal-card-visual"><TarotCard :card="selectedCard" :flipped="true" /><button class="favorite-button" :class="{ active: favorites.includes(selectedCard.id) }" :aria-label="favorites.includes(selectedCard.id) ? `取消收藏${selectedCard.name}` : `收藏${selectedCard.name}`" :aria-pressed="favorites.includes(selectedCard.id)" @click="toggleFavorite(selectedCard.id)">♡</button></div>
         <div class="modal-copy">
           <p>{{ categoryNames[selectedCard.category] }} / {{ selectedCard.number }}</p>
           <h2>{{ selectedCard.name }}</h2><span>{{ selectedCard.englishName }}</span>

@@ -11,7 +11,7 @@
   --line-strong: rgba(216, 189, 123, 0.35);
   --text: #f3f0ea;
   --muted: #aaa9b9;
-  --quiet: #74758a;
+  --quiet: #85869b;
   --accent: #a5a3e2;
   --accent-strong: #d9d7ff;
   --gold: #d8bd7b;
@@ -99,7 +99,7 @@ button:disabled { cursor: default; opacity: .65; }
 .reading-form, .settings-panel { border-radius: var(--radius); padding: clamp(24px, 5vw, 48px); }
 .reading-form > label, fieldset legend { display: block; margin-bottom: 12px; color: #dddbe8; font-size: 14px; font-weight: 500; }
 .reading-form textarea { width: 100%; border: 1px solid var(--line); border-radius: var(--radius-control); background: rgba(5, 6, 20, .45); color: var(--text); padding: 17px; line-height: 1.7; transition: border-color .25s, background .25s; }
-textarea::placeholder { color: #77788c; }
+textarea::placeholder { color: var(--quiet); }
 textarea:focus { border-color: rgba(165, 163, 226, .7); background: rgba(5, 6, 20, .68); outline: none; }
 .helper { display: block; margin: 8px 2px 0; color: var(--quiet); font-size: 11px; text-align: right; }
 fieldset { padding: 0; margin: 34px 0; border: 0; }
@@ -116,7 +116,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 .spread-mini i { width: 21px; height: 34px; margin: 0 -5px; border: 1px solid rgba(216, 189, 123, .55); border-radius: 4px; background: #15172e; transform: rotate(calc((var(--n, 1) - 2) * 4deg)); }
 .spread-mini i:nth-child(1) { transform: rotate(-8deg); }.spread-mini i:nth-child(3) { transform: rotate(8deg); }
 
-.ritual-view, .draw-view { min-height: 100dvh; padding: 120px 20px 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+.ritual-view, .draw-view { min-height: 100dvh; padding: 120px 20px 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow-x: hidden; }
 .context-back { position: absolute; top: 105px; left: max(20px, calc(50% - 590px)); z-index: 4; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 13px; padding: 10px 14px; color: var(--muted); transition: .25s var(--ease); }
 .context-back:hover { color: var(--text); background: rgba(255,255,255,.08); transform: translateX(-2px); }
 .ritual-copy { position: relative; z-index: 2; text-align: center; margin-bottom: 25px; }
@@ -189,7 +189,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 .library-card-main > span { display: flex; flex-direction: column; gap: 2px; margin-top: 13px; padding-right: 32px; }
 .library-card-main > span strong { font-size: 13px; font-weight: 500; }
 .library-card-main > span small { color: var(--quiet); font-size: 10px; }
-.library-favorite { position: absolute; right: -5px; bottom: -5px; width: 36px; height: 36px; border-radius: 50%; background: transparent; color: var(--quiet); font-size: 19px; transition: color .25s, background .25s; }
+.library-favorite { position: absolute; right: -5px; bottom: -5px; width: 44px; height: 44px; border-radius: 50%; background: transparent; color: var(--quiet); font-size: 19px; transition: color .25s, background .25s, transform .25s var(--ease); }
 .library-favorite:hover, .library-favorite:focus-visible { color: var(--text); background: rgba(255,255,255,.06); }
 .library-favorite.active { color: var(--gold); }
 
@@ -204,12 +204,13 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 .setting-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 0; border-top: 1px solid var(--line); }
 .setting-row div { display: flex; flex-direction: column; gap: 6px; }
 .setting-row strong { font-size: 14px; }.setting-row span { color: var(--quiet); font-size: 12px; }
-.switch { position: relative; flex: 0 0 48px; width: 48px; height: 28px; }
+.switch { position: relative; flex: 0 0 48px; width: 48px; height: 44px; display: grid; place-items: center; }
 .switch input { position: absolute; opacity: 0; }
-.switch span { display: block; width: 48px; height: 28px; border-radius: 99px; background: rgba(255,255,255,.12); cursor: pointer; transition: background .25s; }
+.switch span { position: relative; display: block; width: 48px; height: 28px; border-radius: 99px; background: rgba(255,255,255,.12); cursor: pointer; transition: background .25s; }
 .switch span::after { content: ''; position: absolute; width: 22px; height: 22px; top: 3px; left: 3px; border-radius: 50%; background: #aaa9b7; transition: transform .3s var(--ease), background .25s; }
 .switch input:checked + span { background: rgba(165,163,226,.42); }.switch input:checked + span::after { transform: translateX(20px); background: #f0eff9; }
 .switch input:focus-visible + span { outline: 2px solid var(--accent-strong); outline-offset: 3px; }
+.topbar button:active, .text-button:active, .back-button:active, .context-back:active, .random-draw-button:active, .segmented button:active, .library-favorite:active, .favorite-button:active, .modal-close:active { transform: scale(.98); }
 .privacy-note { display: flex; align-items: start; gap: 14px; border-radius: 16px; background: rgba(165,163,226,.06); padding: 18px; margin-top: 16px; }
 .privacy-note > span { color: var(--accent); font-size: 20px; }.privacy-note p { margin: 0; color: var(--quiet); font-size: 12px; line-height: 1.65; }.privacy-note strong { display: block; color: var(--muted); margin-bottom: 4px; }
 
@@ -314,7 +315,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
   .result-visual > h2 { font-size: 22px; }.result-cards { min-height: 285px; margin-top: 18px; }.result-cards > button { width: min(135px, 36%); }.result-cards > button small { margin-top: 19px; }
   .interpretation { min-height: 0; }.typewriter { min-height: 0; font-size: 14px; line-height: 1.9; }
   .result-actions { gap: 12px; }.result-actions .back-button { flex: 1; }.result-actions .back-button:last-child { text-align: right; }
-  .page-heading { align-items: center; gap: 16px; margin-bottom: 25px; }.page-heading h1 { font-size: 36px; }.page-heading > span { display: none; }.page-heading .segmented button { padding-inline: 11px; }
+  .page-heading { align-items: center; gap: 16px; margin-bottom: 25px; }.page-heading h1 { font-size: 36px; }.page-heading > span { display: none; }.page-heading .segmented button { min-height: 44px; padding-inline: 11px; }
   .library-grid { grid-template-columns: repeat(3, 1fr); gap: 22px 10px; }.library-card-main > span strong { font-size: 12px; }
   .deck-options { gap: 14px; }.deck-options label .tarot-card { width: min(25vw, 88px); }
   .card-modal { display: block; padding: 52px 20px calc(28px + env(safe-area-inset-bottom)); max-height: calc(100dvh - 12px); }.modal-card-visual { position: relative; width: 168px; margin: 0 auto 30px; }.modal-copy > h2 { font-size: 34px; }
