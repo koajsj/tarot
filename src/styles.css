@@ -162,7 +162,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 .interpretation-head { display: flex; justify-content: space-between; align-items: start; padding-bottom: 23px; border-bottom: 1px solid var(--line); }
 .interpretation-head span { color: var(--gold); font-size: 11px; letter-spacing: .12em; }
 .interpretation-head h2 { margin: 7px 0 0; font-family: 'Songti SC', 'STSong', serif; font-size: 29px; font-weight: 600; }
-.favorite-button { width: 42px; height: 42px; border-radius: 13px; border: 1px solid var(--line); background: rgba(255,255,255,.04); font-size: 22px; }
+.favorite-button { width: 44px; height: 44px; border-radius: 13px; border: 1px solid var(--line); background: rgba(255,255,255,.04); font-size: 22px; }
 .favorite-button.active { color: var(--gold-bright); background: rgba(216,189,123,.1); border-color: var(--line-strong); }
 .typewriter { min-height: 300px; white-space: pre-wrap; color: #c8c7d1; line-height: 2; font-size: 14px; }
 .typewriter.is-typing::after { content: ''; display: inline-block; width: 1px; height: 1em; background: var(--gold); margin-left: 3px; vertical-align: -.12em; animation: blink 1s step-end infinite; }
@@ -182,7 +182,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 .segmented button { background: transparent; color: var(--muted); padding: 9px 14px; border-radius: 10px; }
 .segmented button.active { color: var(--text); background: rgba(255,255,255,.09); }
 .library-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 28px 16px; }
-.library-card { position: relative; min-width: 0; }
+.library-card { position: relative; min-width: 0; content-visibility: auto; contain-intrinsic-size: auto 280px; }
 .library-card-main { width: 100%; min-width: 0; background: none; padding: 0; text-align: left; }
 .library-card-main > .tarot-card { width: 100%; transition: transform .4s var(--ease), filter .4s; }
 .library-card-main:hover > .tarot-card, .library-card-main:focus-visible > .tarot-card { transform: translateY(-8px) rotateY(3deg); filter: brightness(1.08); }
@@ -243,7 +243,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 
 .modal-layer { position: fixed; z-index: 30; inset: 0; background: rgba(2,3,12,.76); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); padding: 24px; overflow: auto; display: grid; place-items: center; }
 .card-modal { position: relative; width: min(900px, 100%); max-height: calc(100dvh - 48px); overflow: auto; border-radius: var(--radius); padding: clamp(24px, 5vw, 50px); display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: clamp(30px, 6vw, 70px); }
-.modal-close { position: absolute; right: 16px; top: 16px; width: 40px; height: 40px; border-radius: 13px; background: rgba(255,255,255,.06); color: var(--muted); font-size: 23px; z-index: 2; }
+.modal-close { position: absolute; right: 16px; top: 16px; width: 44px; height: 44px; border-radius: 13px; background: rgba(255,255,255,.06); color: var(--muted); font-size: 23px; z-index: 2; }
 .modal-card-visual { position: sticky; top: 0; align-self: start; }
 .modal-card-visual .favorite-button { display: block; margin: 22px auto 0; }
 .modal-copy > p { margin: 0 0 8px; color: var(--gold); font-size: 11px; }.modal-copy > h2 { margin: 0; font-family: 'Songti SC', 'STSong', serif; font-size: 42px; font-weight: 600; }.modal-copy > span { color: var(--muted); font-size: 12px; letter-spacing: .08em; }

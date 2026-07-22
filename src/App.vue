@@ -23,6 +23,7 @@ const typedInterpretation = ref('')
 const favorites = ref<string[]>(storage.favorites())
 const settings = ref<Settings>(storage.settings())
 const selectedCard = ref<TarotCardType | null>(null)
+const selectedCardReversed = ref(false)
 const drawFanRef = ref<HTMLElement | null>(null)
 const modalRef = ref<HTMLElement | null>(null)
 const libraryFilter = ref<'all' | 'favorites'>('all')
@@ -66,6 +67,7 @@ function recordStorage(scope: StorageScope, success: boolean) {
 function navigate(next: View) {
   clearTimers()
   selectedCard.value = null
+  selectedCardReversed.value = false
   view.value = next
   scrollToTop()
 }
@@ -127,6 +129,7 @@ function returnToQuestion() {
   interpretation.value = ''
   typedInterpretation.value = ''
   selectedCard.value = null
+  selectedCardReversed.value = false
   view.value = 'question'
   scrollToTop()
 }
@@ -244,8 +247,9 @@ function playTone() {
   }
 }
 
-async function openCard(card: TarotCardType) {
+async function openCard(card: TarotCardType, reversed = false) {
   lastFocusedElement = document.activeElement instanceof HTMLElement ? document.activeElement : null
+  selectedCardReversed.value = reversed
   selectedCard.value = card
   await nextTick()
   document.querySelector<HTMLButtonElement>('.modal-close')?.focus()
@@ -253,6 +257,7 @@ async function openCard(card: TarotCardType) {
 
 async function closeCard() {
   selectedCard.value = null
+  selectedCardReversed.value = false
   await nextTick()
   lastFocusedElement?.focus()
   lastFocusedElement = null
@@ -414,6 +419,9 @@ onBeforeUnmount(() => {
           v-if="!canFinish"
           ref="drawFanRef"
           class="draw-fan"
+          role="group"
+          :aria-label="`${currentSpread.positions[prepared.length]}，从剩余 ${remainingDeck.length} 张牌中选择`"
+          aria-describedby="deck-hint"
           :class="{ 'is-dragging': deckDragging }"
           @wheel.prevent="scrollDeck"
           @pointerdown="startDeckDrag"
@@ -426,7 +434,7 @@ onBeforeUnmount(() => {
           </button>
         </div>
 
-        <p v-if="!canFinish" class="deck-hint">横向滑动，凭直觉从完整 78 张牌中选择</p>
+        <p v-if="!canFinish" id="deck-hint" class="deck-hint">横向滑动，凭直觉从完整 78 张牌中选择</p>
 
         <button v-if="!canFinish" class="random-draw-button" @click="randomDeckCard"><span>✦</span> 让牌替我选择</button>
 
@@ -452,7 +460,7 @@ onBeforeUnmount(() => {
             <p>{{ currentSpread.name }}</p>
             <h2>{{ question }}</h2>
             <div class="result-cards">
-              <button v-for="draw in prepared" :key="draw.position" :aria-label="`查看${draw.position}的${draw.card.name}${draw.reversed ? '逆位' : '正位'}详情`" @click="openCard(draw.card)">
+              <button v-for="draw in prepared" :key="draw.position" :aria-label="`查看${draw.position}的${draw.card.name}${draw.reversed ? '逆位' : '正位'}详情`" @click="openCard(draw.card, draw.reversed)">
                 <TarotCard :card="draw.card" :reversed="draw.reversed" :flipped="true" :label="draw.position" />
                 <small>{{ draw.reversed ? '逆位' : '正位' }}</small>
               </button>
@@ -488,7 +496,7 @@ onBeforeUnmount(() => {
         <div class="settings-panel glass">
           <fieldset><legend>牌背样式</legend><div class="deck-options">
             <label v-for="deck in ([['celestial', '星图'], ['aurora', '极光'], ['obsidian', '曜石']] as const)" :key="deck[0]" :class="{ selected: settings.deck === deck[0] }">
-              <input v-model="settings.deck" type="radio" :value="deck[0]"><TarotCard facedown :deck="deck[0]" /><span>{{ deck[1] }}</span>
+              <input v-model="settings.deck" type="radio" name="deck-style" :value="deck[0]"><TarotCard facedown :deck="deck[0]" /><span>{{ deck[1] }}</span>
             </label>
           </div></fieldset>
           <div class="setting-row"><div><strong>仪式动画</strong><span>洗牌、翻牌与文字逐字显现</span></div><label class="switch"><input v-model="settings.animations" type="checkbox" aria-label="仪式动画"><span /></label></div>
@@ -498,10 +506,10 @@ onBeforeUnmount(() => {
       </section>
     </main>
 
-    <div v-if="selectedCard" ref="modalRef" class="modal-layer" role="dialog" aria-modal="true" :aria-label="selectedCard.name" @click.self="closeCard" @keydown.esc="closeCard" @keydown.tab="trapModalFocus">
+    <div v-if="selectedCard" ref="modalRef" class="modal-layer" role="dialog" aria-modal="true" :aria-label="`${selectedCard.name}${selectedCardReversed ? '逆位' : ''}详情`" @click.self="closeCard" @keydown.esc="closeCard" @keydown.tab="trapModalFocus">
       <article class="card-modal glass">
         <button class="modal-close" aria-label="关闭" @click="closeCard">×</button>
-        <div class="modal-card-visual"><TarotCard :card="selectedCard" :flipped="true" /><button class="favorite-button" :class="{ active: favorites.includes(selectedCard.id) }" :aria-label="favorites.includes(selectedCard.id) ? `取消收藏${selectedCard.name}` : `收藏${selectedCard.name}`" :aria-pressed="favorites.includes(selectedCard.id)" @click="toggleFavorite(selectedCard.id)">♡</button></div>
+        <div class="modal-card-visual"><TarotCard :card="selectedCard" :reversed="selectedCardReversed" :flipped="true" /><button class="favorite-button" :class="{ active: favorites.includes(selectedCard.id) }" :aria-label="favorites.includes(selectedCard.id) ? `取消收藏${selectedCard.name}` : `收藏${selectedCard.name}`" :aria-pressed="favorites.includes(selectedCard.id)" @click="toggleFavorite(selectedCard.id)">♡</button></div>
         <div class="modal-copy">
           <p>{{ categoryNames[selectedCard.category] }} / {{ selectedCard.number }}</p>
           <h2>{{ selectedCard.name }}</h2><span>{{ selectedCard.englishName }}</span>
