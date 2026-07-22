@@ -36,6 +36,8 @@ const storageFailures = ref<Set<StorageScope>>(new Set())
 const reducedMotion = ref(window.matchMedia('(prefers-reduced-motion: reduce)').matches)
 const reducedMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
 const shuffleCards = Array.from({ length: 24 }, (_, index) => index)
+const TYPEWRITER_CHUNK_SIZE = 5
+const TYPEWRITER_INTERVAL_MS = 16
 let shuffleTimer: number | undefined
 let typeTimer: number | undefined
 let dragStartX = 0
@@ -211,13 +213,13 @@ function runTypewriter() {
   typing.value = true
   let index = 0
   typeTimer = window.setInterval(() => {
-    typedInterpretation.value += interpretation.value.slice(index, index + 3)
-    index += 3
+    typedInterpretation.value += interpretation.value.slice(index, index + TYPEWRITER_CHUNK_SIZE)
+    index += TYPEWRITER_CHUNK_SIZE
     if (index >= interpretation.value.length) {
       window.clearInterval(typeTimer)
       typing.value = false
     }
-  }, 20)
+  }, TYPEWRITER_INTERVAL_MS)
 }
 
 function toggleFavorite(id: string) {
