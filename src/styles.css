@@ -90,9 +90,13 @@ button:disabled { cursor: default; opacity: .65; }
 .home-stats b { color: var(--text); margin-right: 5px; font-size: 16px; }
 
 .page-narrow { width: min(calc(100% - 40px), 900px); margin: 0 auto; padding: 120px 0 80px; }
-.back-button { background: transparent; color: var(--muted); padding: 10px 0; margin-bottom: 34px; }
-.back-button:hover { color: var(--text); }
-.page-back { margin-bottom: 18px; }
+.navigation-actions { display: flex; align-items: center; gap: 8px; }
+.page-navigation { margin-bottom: 24px; }
+.nav-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 42px; padding: 0 13px; border: 1px solid transparent; border-radius: 13px; background: transparent; color: var(--muted); font-size: 13px; white-space: nowrap; transition: color .25s, background .25s, border-color .25s, transform .25s var(--ease); }
+.nav-button:hover { color: var(--text); background: rgba(255,255,255,.06); }
+.nav-button.nav-home { border-color: var(--line); background: rgba(255,255,255,.035); }
+.nav-button.nav-home:hover { border-color: var(--line-strong); background: rgba(216,189,123,.06); }
+.new-reading-button { color: var(--accent-strong); }
 .section-heading { text-align: center; margin: 0 auto 38px; }
 .section-heading h2 { margin: 0 0 12px; font-family: 'Songti SC', 'STSong', serif; font-size: clamp(32px, 4vw, 48px); font-weight: 600; }
 .section-heading p { margin: 0; color: var(--muted); line-height: 1.7; }
@@ -117,8 +121,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 .spread-mini i:nth-child(1) { transform: rotate(-8deg); }.spread-mini i:nth-child(3) { transform: rotate(8deg); }
 
 .ritual-view, .draw-view { min-height: 100dvh; padding: 120px 20px 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow-x: hidden; }
-.context-back { position: absolute; top: 105px; left: max(20px, calc(50% - 590px)); z-index: 4; background: rgba(255,255,255,.04); border: 1px solid var(--line); border-radius: 13px; padding: 10px 14px; color: var(--muted); transition: .25s var(--ease); }
-.context-back:hover { color: var(--text); background: rgba(255,255,255,.08); transform: translateX(-2px); }
+.ritual-navigation { position: absolute; top: 105px; left: max(20px, calc(50% - 590px)); z-index: 4; }
 .ritual-copy { position: relative; z-index: 2; text-align: center; margin-bottom: 25px; }
 .ritual-copy p { margin: 0 0 9px; color: var(--gold); font-size: 12px; letter-spacing: .12em; }
 .ritual-copy h2 { margin: 0; font-family: 'Songti SC', 'STSong', serif; font-size: clamp(32px, 4vw, 46px); font-weight: 600; }
@@ -210,7 +213,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
 .switch span::after { content: ''; position: absolute; width: 22px; height: 22px; top: 3px; left: 3px; border-radius: 50%; background: #aaa9b7; transition: transform .3s var(--ease), background .25s; }
 .switch input:checked + span { background: rgba(165,163,226,.42); }.switch input:checked + span::after { transform: translateX(20px); background: #f0eff9; }
 .switch input:focus-visible + span { outline: 2px solid var(--accent-strong); outline-offset: 3px; }
-.topbar button:active, .text-button:active, .back-button:active, .context-back:active, .random-draw-button:active, .segmented button:active, .library-favorite:active, .favorite-button:active, .modal-close:active { transform: scale(.98); }
+.topbar button:active, .text-button:active, .nav-button:active, .random-draw-button:active, .segmented button:active, .library-favorite:active, .favorite-button:active, .modal-close:active { transform: scale(.98); }
 .privacy-note { display: flex; align-items: start; gap: 14px; border-radius: 16px; background: rgba(165,163,226,.06); padding: 18px; margin-top: 16px; }
 .privacy-note > span { color: var(--accent); font-size: 20px; }.privacy-note p { margin: 0; color: var(--quiet); font-size: 12px; line-height: 1.65; }.privacy-note strong { display: block; color: var(--muted); margin-bottom: 4px; }
 
@@ -295,14 +298,15 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
   .home-stats { order: 3; min-height: 60px; padding: 10px 5px; justify-content: space-around; }
   .home-stats span { flex: 1; padding: 0 5px; font-size: 9px; text-align: center; }.home-stats b { display: block; margin: 0 0 2px; font-size: 14px; }
   .page-narrow, .page-view, .result-view { width: calc(100% - 24px); padding-top: max(20px, env(safe-area-inset-top)); padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
-  .back-button { min-height: 44px; margin-bottom: 14px; }
+  .page-navigation { margin-bottom: 14px; }
+  .nav-button { min-height: 44px; padding-inline: 11px; font-size: 12px; }
   .section-heading { margin-bottom: 25px; }.section-heading h2 { font-size: 32px; }
   .reading-form, .settings-panel { padding: 20px; border-radius: 20px; }
   .reading-form textarea { font-size: 16px; }
   .choice-grid { grid-template-columns: repeat(2, 1fr); }.choice-grid label:last-child { grid-column: span 2; }
   .spread-grid { grid-template-columns: 1fr; }.spread-grid label { padding: 14px; }
   .ritual-view, .draw-view { padding: max(68px, calc(env(safe-area-inset-top) + 56px)) 12px calc(100px + env(safe-area-inset-bottom)); min-height: 100dvh; }
-  .context-back { top: max(12px, env(safe-area-inset-top)); left: 12px; min-height: 44px; font-size: 12px; padding: 8px 12px; }
+  .ritual-navigation { top: max(12px, env(safe-area-inset-top)); left: 12px; right: 12px; justify-content: space-between; }
   .shuffle-stage { height: 330px; }.shuffle-stage .shuffle-card { width: 128px; }
   .draw-view .ritual-copy { margin-top: 0; }
   .draw-fan { width: calc(100vw - 8px); height: 216px; padding: 10px 44px 14px; margin-top: -6px; scrollbar-width: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(90deg, transparent, #000 10%, #000 90%, transparent); }
@@ -314,7 +318,7 @@ fieldset { padding: 0; margin: 34px 0; border: 0; }
   .result-layout { display: flex; flex-direction: column; }.result-visual, .interpretation { width: 100%; padding: 22px; border-radius: 20px; }
   .result-visual > h2 { font-size: 22px; }.result-cards { min-height: 285px; margin-top: 18px; }.result-cards > button { width: min(135px, 36%); }.result-cards > button small { margin-top: 19px; }
   .interpretation { min-height: 0; }.typewriter { min-height: 0; font-size: 14px; line-height: 1.9; }
-  .result-actions { gap: 12px; }.result-actions .back-button { flex: 1; }.result-actions .back-button:last-child { text-align: right; }
+  .result-actions { align-items: stretch; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }.result-actions > .navigation-actions { width: 100%; justify-content: space-between; }.result-actions .new-reading-button { margin-left: auto; padding-inline: 8px; }
   .page-heading { align-items: center; gap: 16px; margin-bottom: 25px; }.page-heading h1 { font-size: 36px; }.page-heading > span { display: none; }.page-heading .segmented button { min-height: 44px; padding-inline: 11px; }
   .library-grid { grid-template-columns: repeat(3, 1fr); gap: 22px 10px; }.library-card-main > span strong { font-size: 12px; }
   .deck-options { gap: 10px; }.deck-options label .tarot-card { width: min(23vw, 88px); }

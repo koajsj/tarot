@@ -136,6 +136,19 @@ function returnToQuestion() {
   scrollToTop()
 }
 
+function returnToShuffle() {
+  clearTimers()
+  shuffling.value = false
+  prepared.value = []
+  selectedDeckIds.value = []
+  interpretation.value = ''
+  typedInterpretation.value = ''
+  selectedCard.value = null
+  selectedCardReversed.value = false
+  view.value = 'shuffle'
+  scrollToTop()
+}
+
 function selectDeckCard(card: TarotCardType, focusTarget: 'deck' | 'random' = 'deck') {
   if (canFinish.value || selectedDeckIds.value.includes(card.id)) return
   const currentChoices = remainingDeck.value
@@ -354,7 +367,9 @@ onBeforeUnmount(() => {
       </section>
 
       <section v-else-if="view === 'question'" class="form-view view-enter page-narrow">
-        <button class="back-button" @click="navigate('home')">← 返回</button>
+        <div class="navigation-actions page-navigation">
+          <button class="nav-button" @click="navigate('home')"><span aria-hidden="true">←</span> 返回首页</button>
+        </div>
         <header class="section-heading">
           <h2>把问题交给牌面</h2>
           <p>问题越诚实，镜子越清晰。塔罗提供视角，决定仍然属于你。</p>
@@ -390,7 +405,10 @@ onBeforeUnmount(() => {
       </section>
 
       <section v-else-if="view === 'shuffle'" class="ritual-view view-enter">
-        <button class="context-back" @click="returnToQuestion">← 返回问题</button>
+        <div class="navigation-actions ritual-navigation">
+          <button class="nav-button" @click="returnToQuestion"><span aria-hidden="true">←</span> 返回上一层</button>
+          <button class="nav-button nav-home" @click="navigate('home')"><span aria-hidden="true">⌂</span> 返回首页</button>
+        </div>
         <div class="ritual-copy" aria-live="polite">
           <p>{{ shuffling ? '请保持呼吸，心中默念你的问题' : '牌已经准备好了' }}</p>
           <h2>{{ shuffling ? '正在洗牌' : '跟随你的直觉' }}</h2>
@@ -410,7 +428,10 @@ onBeforeUnmount(() => {
       </section>
 
       <section v-else-if="view === 'draw'" class="draw-view view-enter">
-        <button class="context-back" @click="returnToQuestion">← 返回问题</button>
+        <div class="navigation-actions ritual-navigation">
+          <button class="nav-button" @click="returnToShuffle"><span aria-hidden="true">←</span> 返回上一层</button>
+          <button class="nav-button nav-home" @click="navigate('home')"><span aria-hidden="true">⌂</span> 返回首页</button>
+        </div>
         <div class="ritual-copy" aria-live="polite">
           <p>{{ currentSpread.name }}</p>
           <h2>{{ canFinish ? '牌面已经显现' : `选择第 ${prepared.length + 1} 张牌` }}</h2>
@@ -456,7 +477,13 @@ onBeforeUnmount(() => {
       </section>
 
       <section v-else-if="view === 'result'" class="result-view view-enter">
-        <div class="result-actions"><button class="back-button" @click="navigate('draw')">← 返回牌面</button><button class="back-button" @click="startReading">开始新的占卜</button></div>
+        <div class="result-actions">
+          <div class="navigation-actions">
+            <button class="nav-button" @click="navigate('draw')"><span aria-hidden="true">←</span> 返回上一层</button>
+            <button class="nav-button nav-home" @click="navigate('home')"><span aria-hidden="true">⌂</span> 返回首页</button>
+          </div>
+          <button class="nav-button new-reading-button" @click="startReading">开始新的占卜</button>
+        </div>
         <div class="result-layout">
           <aside class="result-visual glass">
             <p>{{ currentSpread.name }}</p>
@@ -478,7 +505,9 @@ onBeforeUnmount(() => {
       </section>
 
       <section v-else-if="view === 'collection'" class="page-view view-enter">
-        <button class="back-button page-back" @click="navigate('home')">← 返回首页</button>
+        <div class="navigation-actions page-navigation">
+          <button class="nav-button" @click="navigate('home')"><span aria-hidden="true">←</span> 返回首页</button>
+        </div>
         <header class="page-heading"><div><p>完整 78 张</p><h1>塔罗牌库</h1></div><div class="segmented" aria-label="牌库筛选"><button :class="{ active: libraryFilter === 'all' }" :aria-pressed="libraryFilter === 'all'" @click="libraryFilter = 'all'">全部</button><button :class="{ active: libraryFilter === 'favorites' }" :aria-pressed="libraryFilter === 'favorites'" @click="libraryFilter = 'favorites'">收藏 {{ favorites.length }}</button></div></header>
         <div v-if="filteredDeck.length" class="library-grid">
           <article v-for="card in filteredDeck" :key="card.id" class="library-card">
@@ -493,7 +522,9 @@ onBeforeUnmount(() => {
       </section>
 
       <section v-else-if="view === 'settings'" class="settings-view view-enter page-narrow">
-        <button class="back-button page-back" @click="navigate('home')">← 返回首页</button>
+        <div class="navigation-actions page-navigation">
+          <button class="nav-button" @click="navigate('home')"><span aria-hidden="true">←</span> 返回首页</button>
+        </div>
         <header class="section-heading"><h2>设置你的仪式</h2><p>所有选项只保存在当前浏览器中。</p></header>
         <div class="settings-panel glass">
           <fieldset><legend>牌背样式</legend><div class="deck-options">
